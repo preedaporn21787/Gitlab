@@ -101,3 +101,63 @@ def test_base_collector_forward_bias_is_saturation_even_with_high_vce():
     )
     assert classify_region(GOLDEN, op).region == "saturation"
 
+
+from bjt_bias.engineering import (
+    AnalysisResult, CheckResult, analyze, check_agreement, solve_nodal,
+)
+
+FIXED_CASES = [
+    BiasInputs(12.0, 47_000.0, 10_000.0, 4_700.0, 1_000.0, 150.0, 0.7),
+    BiasInputs(9.0, 22_000.0, 4_700.0, 2_200.0, 470.0, 100.0, 0.7),
+    BiasInputs(15.0, 100_000.0, 22_000.0, 3_300.0, 680.0, 250.0, 0.65),
+    BiasInputs(5.0, 10_000.0, 2_200.0, 1_000.0, 220.0, 80.0, 0.7),
+]
+
+
+@pytest.mark.parametrize("inputs", FIXED_CASES)
+def test_nodal_matches_thevenin(inputs):
+    primary = solve_thevenin(inputs)
+    check = solve_nodal(inputs)
+    assert check.ic_a == pytest.approx(primary.ic_a, rel=1e-9, abs=1e-12)
+    assert check.ib_a == pytest.approx(primary.ib_a, rel=1e-9, abs=1e-15)
+    assert check.ie_a == pytest.approx(primary.ie_a, rel=1e-9, abs=1e-12)
+    assert check.vb_v == pytest.approx(primary.vb_v, rel=1e-9, abs=1e-9)
+    assert check.vc_v == pytest.approx(primary.vc_v, rel=1e-9, abs=1e-9)
+    assert check.ve_v == pytest.approx(primary.ve_v, rel=1e-9, abs=1e-9)
+    assert check.vce_v == pytest.approx(primary.vce_v, rel=1e-9, abs=1e-9)
+
+
+def test_check_passes_on_agreeing_results():
+    result = check_agreement(solve_thevenin(GOLDEN), solve_nodal(GOLDEN))
+    assert result.applicable is True
+    assert result.passed is True
+    assert result.max_relative_difference < 1e-9
+
+
+def test_check_is_not_applicable_in_cutoff():
+    result = check_agreement(solve_thevenin(CUTOFF), solve_nodal(CUTOFF))
+    assert result.applicable is False
+    assert result.passed is True
+
+
+def test_check_fails_when_a_value_is_corrupted():
+    primary = solve_thevenin(GOLDEN)
+    corrupted = OperatingPoint(
+        ib_a=primary.ib_a, ic_a=primary.ic_a * 1.01, ie_a=primary.ie_a,
+        vb_v=primary.vb_v, vc_v=primary.vc_v, ve_v=primary.ve_v,
+        vce_v=primary.vce_v,
+    )
+    result = check_agreement(primary, corrupted)
+    assert result.applicable is True
+    assert result.passed is False
+    assert result.max_relative_difference > 1e-9
+
+
+def test_analyze_bundles_everything():
+    result = analyze(GOLDEN)
+    assert isinstance(result, AnalysisResult)
+    assert result.primary == solve_thevenin(GOLDEN)
+    assert result.check.applicable is True
+    assert result.region.region == "active"
+
+

@@ -104,3 +104,85 @@ def classify_region(inputs: BiasInputs, op: OperatingPoint) -> RegionReport:
         )
     return RegionReport(region="active", label_th="แอคทีฟ", message_th="")
 
+
+@dataclass(frozen=True)
+class CheckResult:
+    """Outcome of comparing the primary solve against the independent one."""
+
+    applicable: bool
+    max_relative_difference: float
+    passed: bool
+
+
+@dataclass(frozen=True)
+class AnalysisResult:
+    """Everything the web layer needs for one set of inputs."""
+
+    inputs: BiasInputs
+    primary: OperatingPoint
+    check: CheckResult
+    region: RegionReport
+
+
+def solve_nodal(inputs: BiasInputs) -> OperatingPoint:
+    """Solve the operating point from KCL at the base node, without Thevenin."""
+    v_bb, _ = _thevenin_equivalent(inputs)
+    if v_bb <= inputs.vbe_v:
+        return _cutoff_point(v_bb, inputs.vcc_v)
+
+    base_conductance = 1.0 / ((inputs.beta + 1.0) * inputs.re_ohm)
+    conductance = 1.0 / inputs.r1_ohm + 1.0 / inputs.r2_ohm + base_conductance
+    v_b = (inputs.vcc_v / inputs.r1_ohm + inputs.vbe_v * base_conductance) / conductance
+    i_e = (v_b - inputs.vbe_v) / inputs.re_ohm
+    i_b = i_e / (inputs.beta + 1.0)
+    i_c = inputs.beta * i_b
+    v_e = i_e * inputs.re_ohm
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=v_b,
+        vc_v=v_c,
+        ve_v=v_e,
+        vce_v=v_c - v_e,
+    )
+
+
+def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResult:
+    """Compare two solves, normalising by max(1, |primary|) for each quantity."""
+    if primary.ic_a == 0.0 and primary.ib_a == 0.0:
+        return CheckResult(
+            applicable=False, max_relative_difference=0.0, passed=True
+        )
+
+    pairs = (
+        (primary.ib_a, check.ib_a),
+        (primary.ic_a, check.ic_a),
+        (primary.ie_a, check.ie_a),
+        (primary.vb_v, check.vb_v),
+        (primary.vc_v, check.vc_v),
+        (primary.ve_v, check.ve_v),
+        (primary.vce_v, check.vce_v),
+    )
+    difference = max(
+        abs(primary_value - check_value) / max(1.0, abs(primary_value))
+        for primary_value, check_value in pairs
+    )
+    return CheckResult(
+        applicable=True,
+        max_relative_difference=difference,
+        passed=difference < 1e-9,
+    )
+
+
+def analyze(inputs: BiasInputs) -> AnalysisResult:
+    """Run the primary solve, the independent check, and the region report."""
+    primary = solve_thevenin(inputs)
+    return AnalysisResult(
+        inputs=inputs,
+        primary=primary,
+        check=check_agreement(primary, solve_nodal(inputs)),
+        region=classify_region(inputs, primary),
+    )
+
