@@ -28,14 +28,16 @@ def test_valid_post_shows_numbers(client):
     assert "1.324" in body      # I_C in mA
     assert "4.446" in body      # V_CE in V
     assert "แอคทีฟ" in body
-    assert "ผ่าน" in body
+    assert "(ผ่าน)" in body
+    assert "ไม่ผ่าน" not in body
 
 
 def test_invalid_post_returns_200_with_message(client):
     response = client.post("/", data={**VALID, "r1": "abc"})
     body = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "R1" in body
+    assert "ต้องเป็นตัวเลข" in body
+    assert 'class="error"' in body
     assert "1.324" not in body
 
 
@@ -46,8 +48,10 @@ def test_invalid_post_preserves_typed_value(client):
 
 def test_zero_re_does_not_crash(client):
     response = client.post("/", data={**VALID, "re": "0"})
+    body = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "RE" in response.get_data(as_text=True)
+    assert "ต้องมากกว่า 0" in body
+    assert 'class="error"' in body
 
 
 def test_cutoff_case_is_labelled(client):
@@ -61,6 +65,7 @@ def test_saturation_case_is_labelled(client):
         "/", data={**VALID, "rc": "1000", "r2": "22000", "re": "100"}
     ).get_data(as_text=True)
     assert "อิ่มตัว" in body
+    assert "ขอบเขตบน" in body
 
 
 def test_different_input_renders_different_result(client):
