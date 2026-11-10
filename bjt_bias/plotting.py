@@ -38,7 +38,7 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
 
     lines: list[str] = []
     lines.append(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 420" '
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 420" '
         'role="img" aria-label="วงจรไบแอสแบบแบ่งแรงดัน">'
     )
     lines.append('<title>วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ ไบแอสแบ่งแรงดัน</title>')
@@ -50,67 +50,86 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
         '.g{fill:#1f2430;}</style>'
     )
 
-    # ราง VCC ด้านบน (y=60) และกราวด์ (y=380)
-    lines.append(f'<line x1="40" y1="60" x2="280" y2="60" class="w"/>')
-    lines.append(f'<text x="140" y="52" class="t" text-anchor="middle">{_esc(vcc_text)}</text>')
-    lines.append('<line x1="40" y1="380" x2="280" y2="380" class="w"/>')
-    lines.append('<text x="30" y="392" class="s" text-anchor="end">กราวด์</text>')
+    # ---------- ราง VCC ด้านบน ----------
+    lines.append(f'<line x1="60" y1="50" x2="280" y2="50" class="w"/>')
+    lines.append(f'<text x="272" y="40" class="t">{_esc(vcc_text)}</text>')
+    lines.append(f'<circle cx="280" cy="50" r="3" class="g"/>')
 
-    # R1: จาก VCC rail ลงมาที่โหนดเบส (x=140, y=60 → y=190)
-    lines.append(f'<line x1="140" y1="70" x2="140" y2="180" class="w"/>')
-    lines.append(f'<text x="100" y="135" class="t" transform="rotate(-90 100 135)">{_esc(r1_text)}</text>')
-    # ขีดตัวต้านทาน R1
-    for y in (90, 110, 130, 150, 170):
-        lines.append(f'<line x1="130" y1="{y}" x2="150" y2="{y}" class="c"/>')
+    # ---------- รางกราวด์ ----------
+    lines.append(f'<line x1="60" y1="380" x2="280" y2="380" class="w"/>')
+    for gx in (120, 200):
+        lines.append(f'<line x1="{gx-8}" y1="380" x2="{gx+8}" y2="380" class="w"/>')
+        lines.append(f'<line x1="{gx-8}" y1="386" x2="{gx+8}" y2="386" class="w"/>')
+        lines.append(f'<line x1="{gx-6}" y1="392" x2="{gx+6}" y2="392" class="w"/>')
+    lines.append(f'<text x="50" y="392" class="s" text-anchor="end">กราวด์</text>')
 
-    # R2: จากโหนดเบสลงกราวด์ (x=140, y=190 → y=380)
-    lines.append(f'<line x1="140" y1="200" x2="140" y2="370" class="w"/>')
-    lines.append(f'<text x="180" y="300" class="t" transform="rotate(90 180 300)">{_esc(r2_text)}</text>')
-    for y in (220, 240, 260, 280, 300, 320, 340, 360):
-        lines.append(f'<line x1="130" y1="{y}" x2="150" y2="{y}" class="c"/>')
+    # ---------- ขาซ้าย: ตัวแบ่งแรงดัน ----------
+    # R1: จากราง VCC ลงมาที่โหนดเบส
+    lines.append(f'<line x1="120" y1="60" x2="120" y2="80" class="w"/>')
+    for yy in (90, 105, 120, 135):
+        lines.append(f'<line x1="110" y1="{yy}" x2="130" y2="{yy}" class="c"/>')  # ขีด R1
+    lines.append(f'<line x1="120" y1="145" x2="120" y2="160" class="w"/>')
+    # โหนดเบส (จุดเชื่อม R1, R2, ขาเบสของทรานซิสเตอร์)
+    lines.append(f'<circle cx="120" cy="170" r="3" class="g"/>')
+    lines.append(f'<text x="100" y="178" class="t">V_B</text>')
 
-    # RC: จาก VCC rail ไปคอลเลกเตอร์ (x=140, y=60 → x=200, y=60 แล้วลง)
-    lines.append(f'<line x1="150" y1="70" x2="190" y2="70" class="w"/>')
-    lines.append(f'<line x1="190" y1="70" x2="190" y2="200" class="w"/>')
-    lines.append(f'<text x="215" y="135" class="t" transform="rotate(-90 215 135)">{_esc(rc_text)}</text>')
-    for x in (160, 180, 200, 220, 240):
-        lines.append(f'<line x1="{x}" y1="60" x2="{x}" y2="80" class="c"/>')
+    # R2: จากโหนดเบสลงกราวด์
+    lines.append(f'<line x1="120" y1="180" x2="120" y2="260" class="w"/>')
+    for yy in (200, 215, 230, 245):
+        lines.append(f'<line x1="110" y1="{yy}" x2="130" y2="{yy}" class="c"/>')  # ขีด R2
+    lines.append(f'<line x1="120" y1="270" x2="120" y2="370" class="w"/>')
 
-    # RE: จากอิมิตเตอร์ลงกราวด์ (x=200, y=200 → x=200, y=370)
-    lines.append(f'<line x1="200" y1="210" x2="200" y2="360" class="w"/>')
-    lines.append(f'<text x="240" y="300" class="t" transform="rotate(90 240 300)">{_esc(re_text)}</text>')
-    for y in (230, 250, 270, 290, 310, 330, 350):
-        lines.append(f'<line x1="190" y1="{y}" x2="210" y2="{y}" class="c"/>')
+    # ---------- ขาขวา: RC และ RE ----------
+    # RC: จากราง VCC ลงมาที่คอลเลกเตอร์
+    lines.append(f'<line x1="200" y1="60" x2="200" y2="80" class="w"/>')
+    for yy in (90, 105, 120, 135):
+        lines.append(f'<line x1="190" y1="{yy}" x2="210" y2="{yy}" class="c"/>')  # ขีด RC
+    lines.append(f'<line x1="200" y1="145" x2="200" y2="160" class="w"/>')
+    # โหนดคอลเลกเตอร์
+    lines.append(f'<circle cx="200" cy="170" r="3" class="g"/>')
+    lines.append(f'<text x="220" y="178" class="t">V_C</text>')
 
-    # สัญลักษณ์ทรานซิสเตอร์ NPN วงกลมที่ (200, 200)
-    lines.append('<circle cx="200" cy="200" r="26" class="w"/>')
-    lines.append('<line x1="180" y1="195" x2="220" y2="205" class="w"/>')  # ขั้วเบส
-    lines.append('<line x1="175" y1="205" x2="225" y2="195" class="w"/>')  # ขั้วเบสขวาง
-    lines.append(f'<text x="200" y="166" class="t" text-anchor="middle">Q₁ NPN</text>')
-    lines.append(f'<text x="200" y="234" class="s" text-anchor="middle">(β)</text>')
+    # วงกลมทรานซิสเตอร์ Q1
+    lines.append(f'<circle cx="200" cy="230" r="25" class="w"/>')
+    # ขาเบสเชื่อมจากโหนดเบสเข้าวงกลมด้านซ้าย
+    lines.append(f'<line x1="120" y1="170" x2="175" y2="230" class="w"/>')
+    # ขาคอลเลกเตอร์จากด้านบนวงกลมขึ้นไปโหนดคอลเลกเตอร์
+    lines.append(f'<line x1="200" y1="145" x2="200" y2="170" class="w"/>')
+    # ขาอิมิตเตอร์จากด้านล่างวงกลมลงไปโหนดอิมิตเตอร์
+    lines.append(f'<line x1="200" y1="255" x2="200" y2="270" class="w"/>')
+    # โหนดอิมิตเตอร์
+    lines.append(f'<circle cx="200" cy="270" r="3" class="g"/>')
+    lines.append(f'<text x="220" y="278" class="t">V_E</text>')
 
-    # โหนดเบส (x=140, y=200) เชื่อมจาก R2
-    lines.append(f'<line x1="140" y1="190" x2="140" y2="200" class="w"/>')
-    lines.append(f'<circle cx="140" cy="200" r="3" class="g"/>')
-    lines.append(f'<text x="118" y="208" class="t">V_B</text>')
+    # RE: จากโหนดอิมิตเตอร์ลงกราวด์
+    lines.append(f'<line x1="200" y1="280" x2="200" y2="340" class="w"/>')
+    for yy in (295, 310, 325):
+        lines.append(f'<line x1="190" y1="{yy}" x2="210" y2="{yy}" class="c"/>')  # ขีด RE
+    lines.append(f'<line x1="200" y1="350" x2="200" y2="370" class="w"/>')
 
-    # โหนดคอลเลกเตอร์ (x=200, y=200) เชื่อมจาก RC
-    lines.append(f'<line x1="190" y1="200" x2="200" y2="200" class="w"/>')
-    lines.append(f'<circle cx="200" cy="200" r="3" class="g"/>')
-    lines.append(f'<text x="220" y="208" class="t">V_C</text>')
+    # ---------- ป้ายชื่ออุปกรณ์ ----------
+    lines.append(f'<text x="75" y="110" class="t" transform="rotate(-90 75 110)">{_esc(r1_text)}</text>')
+    lines.append(f'<text x="75" y="225" class="t" transform="rotate(-90 75 225)">{_esc(r2_text)}</text>')
+    lines.append(f'<text x="225" y="110" class="t" transform="rotate(-90 225 110)">{_esc(rc_text)}</text>')
+    lines.append(f'<text x="225" y="320" class="t" transform="rotate(-90 225 320)">{_esc(re_text)}</text>')
+    lines.append(f'<text x="230" y="225" class="t">Q₁ NPN</text>')
+    lines.append(f'<text x="230" y="241" class="s">(β)</text>')
 
-    # โหนดอิมิตเตอร์ (x=200, y=200) เชื่อมไป RE
-    lines.append(f'<line x1="200" y1="200" x2="200" y2="210" class="w"/>')
-    lines.append(f'<circle cx="200" cy="200" r="3" class="g"/>')
-    lines.append(f'<text x="220" y="228" class="t">V_E</text>')
+    # ---------- ลูกศรกระแส ----------
+    # I_B เข้าเบสจากซ้าย
+    lines.append(f'<line x1="95" y1="230" x2="119" y2="230" class="w" marker-end="url(#arrow)"/>')
+    lines.append(f'<text x="75" y="226" class="s">I_B</text>')
+    # I_C ลงคอลเลกเตอร์
+    lines.append(f'<line x1="200" y1="60" x2="200" y2="140" class="w" marker-end="url(#arrow)"/>')
+    lines.append(f'<text x="218" y="105" class="s">I_C</text>')
+    # I_E ออกอิมิตเตอร์ลงล่าง
+    lines.append(f'<line x1="200" y1="270" x2="200" y2="360" class="w" marker-end="url(#arrow)"/>')
+    lines.append(f'<text x="218" y="320" class="s">I_E</text>')
 
-    # ลูกศรกระแส
-    lines.append(f'<line x1="132" y1="200" x2="138" y2="200" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="110" y="194" class="s">I_B</text>')
-    lines.append(f'<line x1="190" y1="70" x2="190" y2="200" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="212" y="130" class="s">I_C</text>')
-    lines.append(f'<line x1="200" y1="210" x2="200" y2="360" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="218" y="300" class="s">I_E</text>')
+    # ลูกศรอิมิตเตอร์ของ NPN (สามเหลี่ยมชี้ลงออกจากวงกลม)
+    lines.append(f'<line x1="200" y1="255" x2="195" y2="259" class="w"/>')
+    lines.append(f'<line x1="200" y1="255" x2="205" y2="259" class="w"/>')
+    lines.append(f'<line x1="195" y1="259" x2="205" y2="259" class="w"/>')
 
     lines.append(
         '<defs><marker id="arrow" markerWidth="6" markerHeight="6" '
