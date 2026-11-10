@@ -70,3 +70,37 @@ def solve_thevenin(inputs: BiasInputs) -> OperatingPoint:
         ve_v=v_e,
         vce_v=v_c - v_e,
     )
+
+
+@dataclass(frozen=True)
+class RegionReport:
+    """Operating region with Thai display copy."""
+
+    region: str
+    label_th: str
+    message_th: str
+
+
+SATURATION_VCE_V = 0.3
+
+
+def classify_region(inputs: BiasInputs, op: OperatingPoint) -> RegionReport:
+    """Classify the operating region, checking cutoff first, then saturation."""
+    v_bb, _ = _thevenin_equivalent(inputs)
+    if v_bb <= inputs.vbe_v:
+        return RegionReport(
+            region="cutoff",
+            label_th="คัตออฟ",
+            message_th="ทรานซิสเตอร์หยุดนำ ไม่มีกระแสคอลเลกเตอร์",
+        )
+    if op.vce_v <= SATURATION_VCE_V or op.vc_v <= op.vb_v:
+        return RegionReport(
+            region="saturation",
+            label_th="อิ่มตัว",
+            message_th=(
+                "โมเดล β คงที่ใช้ไม่ได้ในเขตอิ่มตัว "
+                "ค่า I_C ที่รายงานจึงเป็นเพียงขอบเขตบน ไม่ใช่ค่าทางกายภาพ"
+            ),
+        )
+    return RegionReport(region="active", label_th="แอคทีฟ", message_th="")
+
