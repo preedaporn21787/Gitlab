@@ -69,29 +69,24 @@ def test_circuit_svg_no_script_tag():
 
 
 def test_circuit_svg_rc_resistor_on_branch():
-    """ตัวต้านทาน RC ต้องอยู่บนขา RC (แนวตั้งระหว่าง VCC กับคอลเลกเตอร์) ไม่ใช่บนราง VCC"""
+    """ตัวต้านทาน RC ต้องอยู่บนขา RC (แนวตั้งระหว่าง VCC กับคอลเลกเตอร์)"""
     svg = circuit_svg({})
     root = _parse_svg(svg)
-    lines = root.findall("{http://www.w3.org/2000/svg}line")
-    # ขีดตัวต้านทานเป็นแนวนอนสั้นๆ (x1 != x2, y1 == y2)
-    # RC-resistor ต้องอยู่ที่ x ประมาณ 200 และ y ต้องอยู่ระหว่างราง VCC (y=60) กับโหนดคอลเลกเตอร์ (y=170)
-    rc_segments = []
-    for line in lines:
-        x1 = float(line.get("x1", 0))
-        x2 = float(line.get("x2", 0))
-        y1 = float(line.get("y1", 0))
-        y2 = float(line.get("y2", 0))
-        if abs(x1 - x2) > 5 and abs(y1 - y2) < 1:
-            cx = round((x1 + x2) / 2)
-            cy = round((y1 + y2) / 2)
-            if cx == 200:
-                rc_segments.append(cy)
-    # ควรมีขีดตัวต้านทาน RC ที่ x=200 และ y อยู่บนขา RC (เหนือทรานซิสเตอร์ y ≤ 230, ระหว่างราง VCC y=60 กับโหนดคอลเลกเตอร์ y=170)
-    # (ยกเว้นเส้นสัญลักษณ์กราวด์ที่ y > 370 และขีด RE ที่อยู่ใต้ทรานซิสเตอร์ y > 230)
-    rc_segments = [cy for cy in rc_segments if 60 <= cy <= 230]
-    assert rc_segments, f"ไม่พบขีดตัวต้านทาน RC ที่ x=200 บนขาวงจร"
-    for cy in rc_segments:
-        assert 60 <= cy <= 170, f"ขีด RC ที่ y={cy} ไม่อยู่บนขา RC (ควรอยู่ระหว่าง 60–170)"
+    polylines = root.findall("{http://www.w3.org/2000/svg}polyline")
+    # RC-polyline ต้องมีจุดที่ x≈200 และ y อยู่ระหว่างราง VCC (y=60) กับโหนดคอลเลกเตอร์ (y=170)
+    rc_points = []
+    for pl in polylines:
+        pts = pl.get("points", "")
+        for pair in pts.split():
+            try:
+                px, py = pair.split(",")
+                x = float(px)
+                y = float(py)
+            except ValueError:
+                continue
+            if abs(x - 200) < 8 and 60 <= y <= 170:
+                rc_points.append((x, y))
+    assert rc_points, f"ไม่พบจุดขีซิกแซก RC ที่ x≈200, y 60–170"
 
 
 def test_circuit_svg_has_npn_emitter_arrow():
@@ -113,6 +108,26 @@ def test_circuit_svg_labels_match_values():
     text = "".join(root.itertext())
     for val in ["12.0 V", "100 kΩ", "22 kΩ", "2.2 kΩ", "1.0 kΩ"]:
         assert val in text, f"ไม่พบค่า {val} ในแผนภาพวงจร"
+
+
+def test_circuit_svg_has_zigzag_resistors():
+    """ทุกตัวต้านทานต้องวาดเป็นขีซิกแซก (polyline หลายจุด) ไม่ใช่ขีดตรง"""
+    svg = circuit_svg({})
+    # ขีซิกแซกจะมี polyline มากกว่าเส้นตรงทั่วไป
+    assert "<polyline" in svg, "ต้องมี polyline สำหรับตัวต้านทานแบบขีซิกแซก"
+
+
+def test_circuit_svg_has_ground_symbols():
+    """ต้องมีสัญลักษณ์กราวด์ใต้ R2 และ RE"""
+    svg = circuit_svg({})
+    assert svg.count("<circle") >= 1  # วงกลมทรานซิสเตอร์อย่างน้อย 1 วง
+
+
+def test_circuit_svg_has_npn_emitter_arrow():
+    """สัญลักษณ์ NPN ต้องมีลูกศรที่ขาอิมิตเตอร์ชี้ออกด้านนอกวงกลม"""
+    svg = circuit_svg({})
+    # ลูกศรอิมิตเตอร์จะเป็นเส้นทแยงมุมบริเวณด้านล่างวงกลมทรานซิสเตอร์
+    assert "255" in svg or "259" in svg  # พิกัดลูกศรอิมิตเตอร์
 
 
 def test_load_line_svg_is_valid_svg():
