@@ -103,7 +103,8 @@ def test_base_collector_forward_bias_is_saturation_even_with_high_vce():
 
 
 from bjt_bias.engineering import (
-    AnalysisResult, CheckResult, analyze, check_agreement, solve_nodal,
+    AnalysisResult, CheckResult, analyze, check_agreement, solve_approximate,
+    solve_nodal,
 )
 
 FIXED_CASES = [
@@ -159,5 +160,52 @@ def test_analyze_bundles_everything():
     assert result.primary == solve_thevenin(GOLDEN)
     assert result.check.applicable is True
     assert result.region.region == "active"
+
+
+def test_approximate_golden_values():
+    op = solve_approximate(GOLDEN)
+    # V_B = V_BB = VCC * R2 / (R1 + R2) = 12 * 10k / 57k = 2.10526... V
+    assert op.vb_v == pytest.approx(12.0 * 10_000.0 / 57_000.0, rel=1e-9)
+    assert op.ve_v == pytest.approx(op.vb_v - 0.7, rel=1e-6)
+    assert op.ie_a == pytest.approx(op.ve_v / 1000.0, rel=1e-6)
+    assert op.ic_a == pytest.approx(150.0 / 151.0 * op.ie_a, rel=1e-6)
+    assert op.vc_v == pytest.approx(12.0 - op.ic_a * 4700.0, rel=1e-6)
+    assert op.vce_v == pytest.approx(op.vc_v - op.ve_v, rel=1e-6)
+
+
+def test_approximate_cutoff_returns_zero_currents():
+    op = solve_approximate(CUTOFF)
+    assert op.ib_a == 0.0
+    assert op.ic_a == 0.0
+    assert op.ie_a == 0.0
+    assert op.ve_v == 0.0
+    assert op.vc_v == pytest.approx(12.0, rel=1e-12)
+
+
+def test_analyze_has_approximate_and_method_gap():
+    result = analyze(GOLDEN)
+    assert result.approximate is not None
+    assert result.approximate == solve_approximate(GOLDEN)
+    assert result.method_gap >= 0.0
+
+
+def test_method_gap_zero_in_cutoff():
+    result = analyze(CUTOFF)
+    assert result.method_gap == 0.0
+
+
+def test_method_gap_decreases_as_beta_rises():
+    low_beta = BiasInputs(12.0, 47_000.0, 10_000.0, 4_700.0, 1_000.0, 10.0, 0.7)
+    high_beta = BiasInputs(12.0, 47_000.0, 10_000.0, 4_700.0, 1_000.0, 1000.0, 0.7)
+    gap_low = analyze(low_beta).method_gap
+    gap_high = analyze(high_beta).method_gap
+    assert gap_high < gap_low
+
+
+def test_approximate_within_15_percent_of_exact_for_normal_case():
+    primary = solve_thevenin(GOLDEN)
+    approx = solve_approximate(GOLDEN)
+    diff = abs(primary.ic_a - approx.ic_a) / max(1.0, abs(primary.ic_a))
+    assert diff < 0.15
 
 

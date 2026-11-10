@@ -72,6 +72,32 @@ def solve_thevenin(inputs: BiasInputs) -> OperatingPoint:
     )
 
 
+def solve_approximate(inputs: BiasInputs) -> OperatingPoint:
+    """Solve assuming base current does not load the divider (V_B = V_BB).
+
+    Uses I_C = β/(β+1)·I_E so KCL stays self-consistent within the result.
+    """
+    v_bb, _ = _thevenin_equivalent(inputs)
+    if v_bb <= inputs.vbe_v:
+        return _cutoff_point(v_bb, inputs.vcc_v)
+
+    v_b = v_bb
+    v_e = v_b - inputs.vbe_v
+    i_e = v_e / inputs.re_ohm
+    i_b = i_e / (inputs.beta + 1.0)
+    i_c = inputs.beta * i_b
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=v_b,
+        vc_v=v_c,
+        ve_v=v_e,
+        vce_v=v_c - v_e,
+    )
+
+
 @dataclass(frozen=True)
 class RegionReport:
     """Operating region with Thai display copy."""
@@ -120,6 +146,8 @@ class AnalysisResult:
 
     inputs: BiasInputs
     primary: OperatingPoint
+    approximate: OperatingPoint
+    method_gap: float
     check: CheckResult
     region: RegionReport
 
@@ -149,13 +177,8 @@ def solve_nodal(inputs: BiasInputs) -> OperatingPoint:
     )
 
 
-def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResult:
-    """Compare two solves, normalising by max(1, |primary|) for each quantity."""
-    if primary.ic_a == 0.0 and primary.ib_a == 0.0:
-        return CheckResult(
-            applicable=False, max_relative_difference=0.0, passed=True
-        )
-
+def _max_relative_difference(primary: OperatingPoint, check: OperatingPoint) -> float:
+    """Maximum relative difference across all seven operating-point quantities."""
     pairs = (
         (primary.ib_a, check.ib_a),
         (primary.ic_a, check.ic_a),
@@ -165,10 +188,20 @@ def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResu
         (primary.ve_v, check.ve_v),
         (primary.vce_v, check.vce_v),
     )
-    difference = max(
+    return max(
         abs(primary_value - check_value) / max(1.0, abs(primary_value))
         for primary_value, check_value in pairs
     )
+
+
+def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResult:
+    """Compare two solves, normalising by max(1, |primary|) for each quantity."""
+    if primary.ic_a == 0.0 and primary.ib_a == 0.0:
+        return CheckResult(
+            applicable=False, max_relative_difference=0.0, passed=True
+        )
+
+    difference = _max_relative_difference(primary, check)
     return CheckResult(
         applicable=True,
         max_relative_difference=difference,
@@ -177,11 +210,14 @@ def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResu
 
 
 def analyze(inputs: BiasInputs) -> AnalysisResult:
-    """Run the primary solve, the independent check, and the region report."""
+    """Run the primary solve, the approximate solve, the independent check, and the region report."""
     primary = solve_thevenin(inputs)
+    approximate = solve_approximate(inputs)
     return AnalysisResult(
         inputs=inputs,
         primary=primary,
+        approximate=approximate,
+        method_gap=_max_relative_difference(primary, approximate),
         check=check_agreement(primary, solve_nodal(inputs)),
         region=classify_region(inputs, primary),
     )
