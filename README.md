@@ -21,11 +21,22 @@
 
 ### วิธีใช้งาน
 
+วิธีที่สั้นที่สุด (สคริปต์จะสร้าง `.venv` และติดตั้ง dependencies ให้เองถ้ายังไม่มี):
+
+```powershell
+.\run.ps1
+```
+
+หรือทำเองทีละขั้น:
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 .\.venv\Scripts\python app.py
 ```
+
+> ต้องใช้ `.\.venv\Scripts\python` เท่านั้น ถ้าพิมพ์ `python app.py` เฉย ๆ จะได้
+> `ModuleNotFoundError: No module named 'flask'` เพราะ Flask ติดตั้งไว้ใน venv
 
 เปิด `http://127.0.0.1:5000`
 
