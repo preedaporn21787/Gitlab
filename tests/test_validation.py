@@ -108,3 +108,48 @@ def test_extreme_but_finite_values_are_accepted():
     result = parse_inputs(_form(beta="1000000", r1="1000000000"))
     assert result.errors == {}
     assert math.isfinite(result.inputs.beta)
+
+
+def test_kohm_is_converted_to_ohm():
+    result = parse_inputs(_form(r1="100", r1_unit="kΩ"))
+    assert result.errors == {}
+    assert result.inputs.r1_ohm == 100000.0
+
+
+def test_ohm_is_not_converted():
+    result = parse_inputs(_form(r1="10000", r1_unit="Ω"))
+    assert result.errors == {}
+    assert result.inputs.r1_ohm == 10000.0
+
+
+def test_missing_unit_uses_default_without_error():
+    result = parse_inputs(_form(r1="47000"))
+    assert result.errors == {}
+    assert result.inputs.r1_ohm == 47000.0
+
+
+def test_unknown_unit_is_an_error():
+    result = parse_inputs(_form(r1="100", r1_unit="MΩ"))
+    assert "r1" in result.errors
+    assert result.inputs is None
+
+
+def test_invalid_number_with_unit_is_an_error():
+    result = parse_inputs(_form(r1="abc", r1_unit="kΩ"))
+    assert "r1" in result.errors
+    assert result.inputs is None
+
+
+def test_units_are_preserved_for_redisplay():
+    result = parse_inputs(_form(r1="100", r1_unit="kΩ"))
+    assert result.units["r1"] == "kΩ"
+    assert result.raw["r1"] == "100"
+    assert result.raw["r1_unit"] == "kΩ"
+
+
+def test_all_resistance_fields_support_kohm():
+    for field in ["r1", "r2", "rc", "re"]:
+        result = parse_inputs(_form(**{field: "2.2", field + "_unit": "kΩ"}))
+        assert result.errors == {}, f"{field} with kΩ failed"
+        assert result.inputs is not None
+        assert getattr(result.inputs, field + "_ohm") == 2200.0
