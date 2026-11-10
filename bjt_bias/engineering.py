@@ -100,10 +100,12 @@ def solve_approximate(inputs: BiasInputs) -> OperatingPoint:
 
 @dataclass(frozen=True)
 class RegionReport:
-    """Operating region with Thai display copy."""
+    """Operating region with display copy in English and Thai."""
 
     region: str
+    label_en: str
     label_th: str
+    detail_en: str
     message_th: str
 
 
@@ -116,19 +118,29 @@ def classify_region(inputs: BiasInputs, op: OperatingPoint) -> RegionReport:
     if v_bb <= inputs.vbe_v:
         return RegionReport(
             region="cutoff",
+            label_en="Cutoff",
             label_th="คัตออฟ",
+            detail_en=f"V_BB = {v_bb:.3f} V <= V_BE = {inputs.vbe_v:.3f} V",
             message_th="ทรานซิสเตอร์หยุดนำ ไม่มีกระแสคอลเลกเตอร์",
         )
     if op.vce_v <= SATURATION_VCE_V or op.vc_v <= op.vb_v:
         return RegionReport(
             region="saturation",
+            label_en="Saturation",
             label_th="อิ่มตัว",
+            detail_en=f"V_CE = {op.vce_v:.3f} V <= 0.3 V or V_C <= V_B",
             message_th=(
                 "โมเดล β คงที่ใช้ไม่ได้ในเขตอิ่มตัว "
                 "ค่า I_C ที่รายงานจึงเป็นเพียงขอบเขตบน ไม่ใช่ค่าทางกายภาพ"
             ),
         )
-    return RegionReport(region="active", label_th="แอคทีฟ", message_th="")
+    return RegionReport(
+        region="active",
+        label_en="Active region",
+        label_th="แอคทีฟ",
+        detail_en=f"V_CE = {op.vce_v:.3f} V > 0.3 V",
+        message_th="",
+    )
 
 
 @dataclass(frozen=True)
