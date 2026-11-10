@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT CE DC Bias — ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <h1>จุดทำงานกระแสตรง BJT คอมมอน-อีมิเตอร์</h1>
+  <p class="subtitle">ไบแอสแบบแบ่งแรงดัน · ENG29 2121</p>
+
+  <form method="post" action="/">
+    <div class="field">
+      <label for="vcc">แรงดันไฟเลี้ยง VCC (V)</label>
+      <input type="text" id="vcc" name="vcc" value="{{ raw.get('vcc', '') }}">
+      {% if errors.get('vcc') %}<p class="error">{{ errors['vcc'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="r1">ตัวต้านทาน R1 (Ω)</label>
+      <input type="text" id="r1" name="r1" value="{{ raw.get('r1', '') }}">
+      {% if errors.get('r1') %}<p class="error">{{ errors['r1'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="r2">ตัวต้านทาน R2 (Ω)</label>
+      <input type="text" id="r2" name="r2" value="{{ raw.get('r2', '') }}">
+      {% if errors.get('r2') %}<p class="error">{{ errors['r2'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="rc">ตัวต้านทาน RC (Ω)</label>
+      <input type="text" id="rc" name="rc" value="{{ raw.get('rc', '') }}">
+      {% if errors.get('rc') %}<p class="error">{{ errors['rc'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="re">ตัวต้านทาน RE (Ω)</label>
+      <input type="text" id="re" name="re" value="{{ raw.get('re', '') }}">
+      {% if errors.get('re') %}<p class="error">{{ errors['re'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="beta">อัตราขยายกระแส β</label>
+      <input type="text" id="beta" name="beta" value="{{ raw.get('beta', '') }}">
+      {% if errors.get('beta') %}<p class="error">{{ errors['beta'] }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="vbe">แรงดันฐาน-อิมิตเตอร์ VBE (V)</label>
+      <input type="text" id="vbe" name="vbe" value="{{ raw.get('vbe', '') }}">
+      {% if errors.get('vbe') %}<p class="error">{{ errors['vbe'] }}</p>{% endif %}
+    </div>
+
+    <button type="submit">คำนวณ</button>
+  </form>
+
+  {% if warnings %}
+  <ul class="warnings">
+    {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if result %}
+  <section class="result">
+    <div class="region region-{{ result.region.region }}">
+      <strong>{{ result.region.label_th }}</strong>
+      {% if result.region.message_th %}<span>{{ result.region.message_th }}</span>{% endif %}
+    </div>
+
+    <dl>
+      <dt>I_B</dt><dd>{{ result.primary.ib_a|ma }} mA</dd>
+      <dt>I_C</dt><dd>{{ result.primary.ic_a|ma }} mA</dd>
+      <dt>I_E</dt><dd>{{ result.primary.ie_a|ma }} mA</dd>
+      <dt>V_B</dt><dd>{{ result.primary.vb_v|v }} V</dd>
+      <dt>V_C</dt><dd>{{ result.primary.vc_v|v }} V</dd>
+      <dt>V_E</dt><dd>{{ result.primary.ve_v|v }} V</dd>
+      <dt>V_CE</dt><dd>{{ result.primary.vce_v|v }} V</dd>
+    </dl>
+
+    <p class="check">
+      {% if result.check.applicable %}
+      ตรวจสอบด้วยวิธี nodal: ต่างกัน {{ '%.1e'|format(result.check.max_relative_difference) }} ({{ 'ผ่าน' if result.check.passed else 'ไม่ผ่าน' }})
+      {% else %}
+      ตรวจสอบด้วยวิธี nodal: ไม่ใช้บังคับ (เขตคัตออฟ)
+      {% endif %}
+    </p>
+  </section>
+  {% endif %}
+</main>
+</body>
+</html>

@@ -1,0 +1,163 @@
+:root {
+  --ink: #1f2430;
+  --muted: #5d6472;
+  --line: #d6dae2;
+  --bg: #f7f8fa;
+  --active: #d8f0dc;
+  --active-ink: #1c5c2a;
+  --saturation: #fbe6bd;
+  --saturation-ink: #7a4d00;
+  --cutoff: #e4e6ea;
+  --cutoff-ink: #3c424d;
+  --error: #a4161a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem 4rem;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Leelawadee UI", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.25rem;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+form {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.field {
+  margin-bottom: 0.9rem;
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+input[type="text"]:focus {
+  outline: 2px solid #7aa7ff;
+  border-color: #7aa7ff;
+}
+
+.error {
+  margin: 0.3rem 0 0;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+button {
+  margin-top: 0.4rem;
+  padding: 0.55rem 1.4rem;
+  border: 0;
+  border-radius: 6px;
+  background: #2f5fd0;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #264eb0;
+}
+
+.warnings {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem 0.75rem 1.9rem;
+  background: #fff8e6;
+  border: 1px solid #f0dca8;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.result {
+  margin-top: 1.25rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.region {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.region-active {
+  background: var(--active);
+  color: var(--active-ink);
+}
+
+.region-saturation {
+  background: var(--saturation);
+  color: var(--saturation-ink);
+}
+
+.region-cutoff {
+  background: var(--cutoff);
+  color: var(--cutoff-ink);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+}
+
+dt {
+  color: var(--muted);
+  font-family: Consolas, "Courier New", monospace;
+}
+
+dd {
+  margin: 0;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.check {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
