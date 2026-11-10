@@ -1,6 +1,5 @@
 """SVG generators for the circuit diagram and load-line chart."""
 
-import math
 import xml.sax.saxutils
 from collections.abc import Mapping
 
@@ -20,7 +19,7 @@ def _esc(text: str) -> str:
     return xml.sax.saxutils.escape(text, {"\"": "&quot;"})
 
 
-def _zigzag(x: float, y1: float, y2: float, amplitude: float = 6, segments: int = 5) -> str:
+def _zigzag(x: float, y1: float, y2: float, amplitude: float = 5, segments: int = 6) -> str:
     """คืนค่าพิกัด polyline สำหรับตัวต้านทานแบบขีซิกแซกแนวตั้ง
     จาก (x, y1) ถึง (x, y2) ซ้าย-ขวาสลับกันระหว่างทาง"""
     pts = [f"{x},{y1}"]
@@ -33,118 +32,135 @@ def _zigzag(x: float, y1: float, y2: float, amplitude: float = 6, segments: int 
     return " ".join(pts)
 
 
+def _ground(x: float, y: float) -> list[str]:
+    """สัญลักษณ์กราวด์แบบมาตรฐาน (เส้น 3 แถวความกว้างลดลง)"""
+    return [
+        '<g class="w">',
+        f'<line x1="{x - 11}" y1="{y}" x2="{x + 11}" y2="{y}"/>',
+        f'<line x1="{x - 7}" y1="{y + 4}" x2="{x + 7}" y2="{y + 4}"/>',
+        f'<line x1="{x - 3}" y1="{y + 8}" x2="{x + 3}" y2="{y + 8}"/>',
+        '</g>',
+    ]
+
+
 def circuit_svg(labels: Mapping[str, str]) -> str:
     """วาดแผนภาพวงจรไบแอสแบบแบ่งแรงดันเป็นสตริง SVG.
 
+    เลย์เอาต์อ้างอิงภาพเป้าหมาย: ขาซ้ายคือตัวแบ่งแรงดัน (R1/R2) ขาขวาคือ RC/RE
+    ทรานซิสเตอร์ NPN อยู่กลางระหว่างสองขา ป้ายอุปกรณ์เป็นอักษร Italic Serif
     `labels` คือค่าที่พร้อมแสดง เช่น {"r1": "100 kΩ", "vcc": "12.0 V", ...}
-    ถ้าเป็นดิกทันนีเปล่า จะวาดเฉพาะสัญลักษณ์และชื่ออุปกรณ์ ไม่มีค่า
     """
 
-    def label_for(key: str, default: str) -> str:
-        return labels.get(key, default) if labels else default
+    def label_for(key: str) -> str:
+        return labels.get(key, "") if labels else ""
 
-    vcc_text = label_for("vcc", "VCC")
-    r1_text = label_for("r1", "R1")
-    r2_text = label_for("r2", "R2")
-    rc_text = label_for("rc", "RC")
-    re_text = label_for("re", "RE")
+    vcc_text = label_for("vcc")
+    r1_text = label_for("r1")
+    r2_text = label_for("r2")
+    rc_text = label_for("rc")
+    re_text = label_for("re")
+    beta_text = label_for("beta")
+
+    # ตำแหน่งหลัก
+    top_y = 42
+    ground_y = 292
+    left_x = 95
+    right_x = 200
+    base_x = 155
+    base_y = 190
+    circle_cx, circle_cy, circle_r = 163, 190, 28
 
     lines: list[str] = []
     lines.append(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 420" '
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
         'role="img" aria-label="วงจรไบแอสแบบแบ่งแรงดัน">'
     )
     lines.append('<title>วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ ไบแอสแบ่งแรงดัน</title>')
     lines.append(
-        '<style>.t{font-family:sans-serif;font-size:12px;fill:#1f2430;}'
-        '.s{font-family:sans-serif;font-size:11px;fill:#5d6472;}'
-        '.w{stroke:#1f2430;stroke-width:2;fill:none;}'
-        '.c{stroke:#d6dae2;stroke-width:1;fill:none;}'
-        '.g{fill:#1f2430;}</style>'
+        '<style>'
+        '.w{stroke:#1f2430;stroke-width:1.8;fill:none;}'
+        '.tc{stroke:#1f2430;stroke-width:1.8;}'
+        '.g{fill:#1f2430;}'
+        '.lbl{font-family:Georgia,"Times New Roman",serif;font-style:italic;'
+        'font-size:13px;fill:#1f2430;}'
+        '</style>'
     )
 
     # ---------- ราง VCC ด้านบน ----------
-    lines.append(f'<line x1="60" y1="50" x2="280" y2="50" class="w"/>')
-    lines.append(f'<text x="272" y="42" class="t">{_esc(vcc_text)}</text>')
-    lines.append(f'<circle cx="280" cy="50" r="3" class="g"/>')
-
-    # ---------- รางกราวด์ ----------
-    lines.append(f'<line x1="60" y1="380" x2="280" y2="380" class="w"/>')
-    for gx in (120, 200):
-        lines.append(f'<line x1="{gx-8}" y1="380" x2="{gx+8}" y2="380" class="w"/>')
-        lines.append(f'<line x1="{gx-8}" y1="386" x2="{gx+8}" y2="386" class="w"/>')
-        lines.append(f'<line x1="{gx-6}" y1="392" x2="{gx+6}" y2="392" class="w"/>')
-    lines.append(f'<text x="52" y="392" class="s" text-anchor="end">กราวด์</text>')
+    lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{right_x}" y2="{top_y}" class="w"/>')
+    lines.append(f'<circle cx="{right_x}" cy="{top_y}" r="4" class="g"/>')
+    if vcc_text:
+        lines.append(
+            f'<text x="{right_x}" y="{top_y - 12}" text-anchor="middle" class="lbl">'
+            f'V<tspan dy="4" font-size="9">CC</tspan>'
+            f'<tspan dy="-4"> = {_esc(vcc_text)}</tspan></text>'
+        )
 
     # ---------- ขาซ้าย: ตัวแบ่งแรงดัน ----------
-    # R1: ขีซิกแซกจากราง VCC ลงมาที่โหนดเบส
-    lines.append(f'<polyline points="{_zigzag(120, 60, 170)}" class="c"/>')
-    lines.append(f'<line x1="120" y1="50" x2="120" y2="60" class="w"/>')
-    # โหนดเบส (จุดเชื่อม R1, R2, ขาเบสของทรานซิสเตอร์)
-    lines.append(f'<circle cx="120" cy="170" r="3" class="g"/>')
-    lines.append(f'<text x="100" y="178" class="t">V_B</text>')
-
-    # R2: ขีซิกแซกจากโหนดเบสลงกราวด์
-    lines.append(f'<polyline points="{_zigzag(120, 170, 370)}" class="c"/>')
-    lines.append(f'<line x1="120" y1="370" x2="120" y2="380" class="w"/>')
+    # R1: จากราง VCC ลงมาที่โหนดเบส
+    lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{left_x}" y2="76" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(left_x, 76, 140)}" class="w"/>')
+    lines.append(f'<line x1="{left_x}" y1="140" x2="{left_x}" y2="{base_y}" class="w"/>')
+    # โหนดเบส + สายไปขาเบสของทรานซิสเตอร์
+    lines.append(f'<circle cx="{left_x}" cy="{base_y}" r="3.5" class="g"/>')
+    lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{base_x}" y2="{base_y}" class="w"/>')
+    # R2: จากโหนดเบสลงกราวด์
+    lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{left_x}" y2="210" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(left_x, 210, 270)}" class="w"/>')
+    lines.append(f'<line x1="{left_x}" y1="270" x2="{left_x}" y2="{ground_y}" class="w"/>')
+    lines.extend(_ground(left_x, ground_y))
 
     # ---------- ขาขวา: RC และ RE ----------
-    # RC: ขีซิกแซกจากราง VCC ลงมาที่คอลเลกเตอร์
-    lines.append(f'<polyline points="{_zigzag(200, 60, 170)}" class="c"/>')
-    lines.append(f'<line x1="200" y1="50" x2="200" y2="60" class="w"/>')
-    # โหนดคอลเลกเตอร์
-    lines.append(f'<circle cx="200" cy="170" r="3" class="g"/>')
-    lines.append(f'<text x="220" y="178" class="t">V_C</text>')
+    # RC: จากราง VCC ลงมาที่ขาคอลเลกเตอร์
+    lines.append(f'<line x1="{right_x}" y1="{top_y}" x2="{right_x}" y2="76" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(right_x, 76, 140)}" class="w"/>')
+    # RE: จากขาอิมิตเตอร์ลงกราวด์
+    lines.append(f'<polyline points="{_zigzag(right_x, 240, 282)}" class="w"/>')
+    lines.append(f'<line x1="{right_x}" y1="282" x2="{right_x}" y2="{ground_y}" class="w"/>')
+    lines.extend(_ground(right_x, ground_y))
 
-    # วงกลมทรานซิสเตอร์ Q1
-    lines.append(f'<circle cx="200" cy="230" r="25" class="w"/>')
-    # ขาเบสเชื่อมจากโหนดเบสเข้าวงกลมด้านซ้าย
-    lines.append(f'<line x1="120" y1="170" x2="175" y2="230" class="w"/>')
-    # ขาคอลเลกเตอร์จากด้านบนวงกลมขึ้นไปโหนดคอลเลกเตอร์
-    lines.append(f'<line x1="200" y1="145" x2="200" y2="170" class="w"/>')
-    # ขาอิมิตเตอร์จากด้านล่างวงกลมลงไปโหนดอิมิตเตอร์
-    lines.append(f'<line x1="200" y1="255" x2="200" y2="270" class="w"/>')
-    # โหนดอิมิตเตอร์
-    lines.append(f'<circle cx="200" cy="270" r="3" class="g"/>')
-    lines.append(f'<text x="220" y="278" class="t">V_E</text>')
-
-    # RE: ขีซิกแซกจากโหนดอิมิตเตอร์ลงกราวด์
-    lines.append(f'<polyline points="{_zigzag(200, 270, 370)}" class="c"/>')
-    lines.append(f'<line x1="200" y1="370" x2="200" y2="380" class="w"/>')
-
-    # ---------- สัญลักษณ์ภายในวงกลมทรานซิสเตอร์ (NPN) ----------
-    # ขาเบสภายในวงกลม: จากซ้ายมาจากจุดเชื่อมสายเบส
-    lines.append(f'<line x1="175" y1="230" x2="200" y2="230" class="w"/>')
-    # ขาคอลเลกเตอร์ด้านบนภายในวงกลม
-    lines.append(f'<line x1="200" y1="205" x2="200" y2="230" class="w"/>')
-    # ขาอิมิตเตอร์: ลูกศรชี้ออกด้านล่าง (สำหรับ NPN ลูกศรชี้ออกนอกตัวทรานซิสเตอร์)
-    lines.append(f'<line x1="200" y1="232" x2="190" y2="250" class="w"/>')
-    lines.append(f'<line x1="190" y1="250" x2="210" y2="250" class="w"/>')
-    lines.append(f'<line x1="200" y1="250" x2="200" y2="255" class="w"/>')
+    # ---------- ทรานซิสเตอร์ NPN ----------
+    lines.append(
+        f'<circle cx="{circle_cx}" cy="{circle_cy}" r="{circle_r}" '
+        f'fill="#dce9f5" class="tc"/>'
+    )
+    # แท่งฐาน
+    lines.append(f'<line x1="{base_x}" y1="178" x2="{base_x}" y2="202" class="w"/>')
+    # ขาคอลเลกเตอร์: จากปลายบนของแท่งฐานขึ้นไปขวายัง RC
+    lines.append(f'<line x1="{base_x}" y1="178" x2="{right_x}" y2="140" class="w"/>')
+    # ขาอิมิตเตอร์: จากปลายล่างของแท่งฐานลงไปขวายัง RE
+    lines.append(f'<line x1="{base_x}" y1="202" x2="{right_x}" y2="240" class="w"/>')
+    # ลูกศรขาอิมิตเตอร์ของ NPN ชี้ออกนอกตัวทรานซิสเตอร์ (ลงขวา)
+    lines.append('<polygon points="188.8,230.5 180.7,227.6 184.6,223.1" fill="#1f2430"/>')
 
     # ---------- ป้ายชื่ออุปกรณ์ ----------
-    lines.append(f'<text x="90" y="115" class="t" transform="rotate(-90 90 115)">{_esc(r1_text)}</text>')
-    lines.append(f'<text x="90" y="270" class="t" transform="rotate(-90 90 270)">{_esc(r2_text)}</text>')
-    lines.append(f'<text x="230" y="115" class="t" transform="rotate(-90 230 115)">{_esc(rc_text)}</text>')
-    lines.append(f'<text x="230" y="320" class="t" transform="rotate(-90 230 320)">{_esc(re_text)}</text>')
-    lines.append(f'<text x="235" y="222" class="t">Q₁ NPN</text>')
-    lines.append(f'<text x="235" y="238" class="s">(β)</text>')
+    def name_label(x: float, y: float, name: str, sub: str, anchor: str) -> str:
+        return (
+            f'<text x="{x}" y="{y}" text-anchor="{anchor}" class="lbl">'
+            f'{name}<tspan dy="4" font-size="9">{sub}</tspan></text>'
+        )
 
-    # ---------- ลูกศรกระแส ----------
-    # I_B เข้าเบสจากซ้าย
-    lines.append(f'<line x1="95" y1="230" x2="119" y2="230" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="78" y="226" class="s">I_B</text>')
-    # I_C ลงคอลเลกเตอร์
-    lines.append(f'<line x1="200" y1="50" x2="200" y2="140" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="218" y="105" class="s">I_C</text>')
-    # I_E ออกอิมิตเตอร์ลงล่าง
-    lines.append(f'<line x1="200" y1="270" x2="200" y2="360" class="w" marker-end="url(#arrow)"/>')
-    lines.append(f'<text x="218" y="320" class="s">I_E</text>')
+    def value_label(x: float, y: float, value: str, anchor: str) -> str:
+        return f'<text x="{x}" y="{y}" text-anchor="{anchor}" class="lbl">{_esc(value)}</text>'
 
-    lines.append(
-        '<defs><marker id="arrow" markerWidth="6" markerHeight="6" '
-        'refX="5" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#1f2430"/></marker></defs>'
-    )
+    lines.append(name_label(left_x - 14, 100, "R", "1", "end"))
+    if r1_text:
+        lines.append(value_label(left_x - 14, 118, r1_text, "end"))
+    lines.append(name_label(left_x - 14, 240, "R", "2", "end"))
+    if r2_text:
+        lines.append(value_label(left_x - 14, 258, r2_text, "end"))
+    lines.append(name_label(right_x + 14, 100, "R", "C", "start"))
+    if rc_text:
+        lines.append(value_label(right_x + 14, 118, rc_text, "start"))
+    lines.append(name_label(right_x + 14, 240, "R", "E", "start"))
+    if re_text:
+        lines.append(value_label(right_x + 14, 258, re_text, "start"))
+
+    # ป้ายทรานซิสเตอร์
+    lines.append(name_label(right_x + 14, 168, "Q", "1", "start"))
+    lines.append(f'<text x="{right_x + 14}" y="186" class="lbl">NPN</text>')
+    if beta_text:
+        lines.append(f'<text x="{right_x + 14}" y="204" class="lbl">(β = {_esc(beta_text)})</text>')
 
     lines.append("</svg>")
     return "\n".join(lines)

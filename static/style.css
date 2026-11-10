@@ -127,9 +127,21 @@ main {
 }
 
 .circuit-card {
-  height: 420px;
-  overflow: auto;
   padding: 0.75rem;
+}
+
+.circuit-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.circuit-wrapper svg {
+  max-width: 100%;
+  max-height: 380px;
+  height: auto;
 }
 
 .results-card {
@@ -229,20 +241,6 @@ button {
 
 button:hover {
   background: var(--teal-dark);
-}
-
-/* ---------- Circuit ---------- */
-
-.circuit-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 0.5rem;
-}
-
-.circuit-wrapper svg {
-  max-width: 100%;
-  height: auto;
 }
 
 /* ---------- Results ---------- */
@@ -403,8 +401,6 @@ button:hover {
   }
   .circuit-card {
     grid-column: 1 / -1;
-    height: auto;
-    min-height: 300px;
   }
 }
 
