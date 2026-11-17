@@ -69,10 +69,32 @@
 ## การส่งงาน
 
 - GitHub URL: https://github.com/preedaporn21787/Gitlab
-- Commit SHA: `6e05e4f`
+- Commit SHA: `9331ee6`
 - Branch: `feature/multi-bias-types`
 - วิธีรัน: `.\run.ps1` หรือ `python -m flask --app app run` แล้วเปิด [http://127.0.0.1:5000](http://127.0.0.1:5000) *(ใช้ได้เฉพาะบนเครื่องที่รัน Flask server เท่านั้น)*
 
 ## บทบาท MCP
 
 OpenCode เป็น MCP Client, Playwright MCP เป็น MCP Server ที่ควบคุมเบราว์เซอร์ เบราว์เซอร์ส่งฟอร์มไป Flask ผ่าน HTTP ส่วน OpenCode คุยกับ Playwright ผ่าน MCP Flask ทำงานเหมือนเดิม ไม่ต้องลง Playwright ใน requirements.txt
+
+## หลักฐานจากเบราว์เซอร์ (กรณี A1)
+
+ทดสอบผ่านเบราว์เซอร์จริงที่ [http://127.0.0.1:5000](http://127.0.0.1:5000) โดยกรอกค่าตามตาราง A1 แล้วคลิก "Calculate DC Bias":
+
+| รายการ | ค่าที่เห็นบนหน้าเว็บ | ค่าคาดหมาย | สถานะ |
+|--------|----------------------|-------------|--------|
+| โหมด | Voltage Divider Bias | Voltage Divider Bias | ✅ |
+| VCC | 12 V | 12 V | ✅ |
+| R1 | 100 kΩ | 100 kΩ | ✅ |
+| R2 | 22 kΩ | 22 kΩ | ✅ |
+| RC | 2.2 kΩ | 2.2 kΩ | ✅ |
+| RE | 1 kΩ | 1 kΩ | ✅ |
+| β | 100 | 100 | ✅ |
+| VBE | 0.7 V | 0.70 V | ✅ |
+| IC (Exact) | 1.23 mA | 1.230 mA | ✅ |
+| VCE (Exact) | 8.05 V | 8.052 V | ✅ |
+| เขตการทำงาน | Active region | แอคทีฟ | ✅ |
+
+รูปหลักฐาน: `docs/evidence_A1_browser.jpg`
+
+ผลต่างอยู่ในเกณฑ์ยอมรับ (IC ±0.01 mA, VCE ±0.02 V) เทียบกับค่าอ้างอิงที่ยังไม่ปัดเศษ
