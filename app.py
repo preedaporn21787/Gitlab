@@ -4,7 +4,7 @@ from flask import Flask, render_template, request
 
 from bjt_bias.engineering import analyze
 from bjt_bias.plotting import circuit_svg, load_line_svg
-from bjt_bias.validation import parse_inputs
+from bjt_bias.validation import BIAS_TYPE_LABELS, parse_inputs
 
 
 def create_app() -> Flask:
@@ -45,6 +45,8 @@ def create_app() -> Flask:
                 result=None,
                 circuit_svg=circuit_svg({}),
                 chart_svg=None,
+                bias_type="voltage_divider",
+                bias_type_labels=BIAS_TYPE_LABELS,
             )
 
         parsed = parse_inputs(request.form)
@@ -59,8 +61,12 @@ def create_app() -> Flask:
             errors=parsed.errors,
             warnings=parsed.warnings,
             result=result,
-            circuit_svg=circuit_svg(_display_labels(parsed.raw, parsed.units)),
+            circuit_svg=circuit_svg(
+                _display_labels(parsed.raw, parsed.units), parsed.bias_type
+            ),
             chart_svg=chart_svg,
+            bias_type=parsed.bias_type,
+            bias_type_labels=BIAS_TYPE_LABELS,
         )
 
     return app

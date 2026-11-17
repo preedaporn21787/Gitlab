@@ -24,7 +24,7 @@
       </svg>
       <div class="brand-text">
         <h1>Lab 02: BJT DC Bias Web App</h1>
-        <p class="course">ENG29 2121 — Common Emitter (Voltage Divider Bias)</p>
+        <p class="course">ENG29 2121 — Common Emitter ({{ bias_type_labels[bias_type] }})</p>
       </div>
     </div>
     <div class="subject-badge">
@@ -46,6 +46,15 @@
       </h2>
       <form method="post" action="/">
         <div class="field">
+          <label for="bias_type">ประเภทวงจรเบียส</label>
+          <select name="bias_type" id="bias_type">
+            <option value="voltage_divider"{% if bias_type == 'voltage_divider' %} selected{% endif %}>Voltage Divider Bias</option>
+            <option value="fixed"{% if bias_type == 'fixed' %} selected{% endif %}>Fixed Bias</option>
+            <option value="emitter_single"{% if bias_type == 'emitter_single' %} selected{% endif %}>Emitter Bias (Single Supply)</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label for="vcc">V<sub>CC</sub> (Supply Voltage)</label>
           <div class="input-with-unit">
             <input type="text" id="vcc" name="vcc" value="{{ raw.get('vcc', '') }}">
@@ -54,6 +63,7 @@
           {% if errors.get('vcc') %}<p class="error">{{ errors['vcc'] }}</p>{% endif %}
         </div>
 
+        {% if bias_type == 'voltage_divider' %}
         <div class="field">
           <label for="r1">R<sub>1</sub> (Upper Divider)</label>
           <div class="input-with-unit">
@@ -77,6 +87,21 @@
           </div>
           {% if errors.get('r2') %}<p class="error">{{ errors['r2'] }}</p>{% endif %}
         </div>
+        {% endif %}
+
+        {% if bias_type != 'voltage_divider' %}
+        <div class="field">
+          <label for="rb">R<sub>B</sub> (Base Resistor)</label>
+          <div class="input-with-unit">
+            <input type="text" id="rb" name="rb" value="{{ raw.get('rb', '') }}">
+            <select name="rb_unit">
+              <option value="Ω"{% if units.get('rb') == 'Ω' %} selected{% endif %}>Ω</option>
+              <option value="kΩ"{% if units.get('rb') == 'kΩ' %} selected{% endif %}>kΩ</option>
+            </select>
+          </div>
+          {% if errors.get('rb') %}<p class="error">{{ errors['rb'] }}</p>{% endif %}
+        </div>
+        {% endif %}
 
         <div class="field">
           <label for="rc">R<sub>C</sub> (Collector Resistor)</label>
@@ -90,6 +115,7 @@
           {% if errors.get('rc') %}<p class="error">{{ errors['rc'] }}</p>{% endif %}
         </div>
 
+        {% if bias_type != 'fixed' %}
         <div class="field">
           <label for="re">R<sub>E</sub> (Emitter Resistor)</label>
           <div class="input-with-unit">
@@ -101,6 +127,7 @@
           </div>
           {% if errors.get('re') %}<p class="error">{{ errors['re'] }}</p>{% endif %}
         </div>
+        {% endif %}
 
         <div class="field">
           <label for="beta">β (Current Gain)</label>
@@ -231,16 +258,18 @@
     </svg>
     <div class="goal-content">
       <div class="goal-label">Week 2 Goal</div>
-      <p class="goal-text">Rough target for this lab: Build a Flask web app that takes the circuit parameters,
+      <p class="goal-text">Build a Flask web app that takes the circuit parameters,
       computes the BJT DC bias (<i>V<sub>B</sub>, V<sub>E</sub>, V<sub>C</sub>, V<sub>CE</sub>, I<sub>B</sub>, I<sub>C</sub>, I<sub>E</sub></i>)
-      for a common-emitter amplifier with voltage-divider bias, and displays the results.</p>
+      for common-emitter amplifier bias circuits (voltage divider, fixed bias, emitter bias with single supply),
+      and displays the results.</p>
     </div>
   </aside>
 
   <footer class="notes">
-    <p>แอปนี้คำนวณจุดทำงานกระแสตรงของทรานซิสเตอร์ NPN ชนิดคอมมอน-อีมิเตอร์แบบไบแอสแบ่งแรงดัน
-    ผลลัพธ์ถูกตรวจสอบไขว้กับการวิเคราะห์โหนด (nodal analysis) ซึ่งเป็นวิธีอิสระจากวงจรสมมูลเทเวนินที่ใช้คำนวณหลัก
-    วิธีประมาณถือว่ากระแสเบสไม่โหลดตัวแบ่งแรงดัน (V<sub>B</sub> = V<sub>BB</sub>) และแสดงคู่กันเพื่อเปรียบเทียบ</p>
+    <p>แอปนี้คำนวณจุดทำงานกระแสตรงของทรานซิสเตอร์ NPN ชนิดคอมมอน-อีมิเตอร์
+    รองรับไบแอสแบบแบ่งแรงดัน บายัสด์เบียส และอิมิตเตอร์เบียสแหล่งจ่ายเดียว
+    ผลลัพธ์ถูกตรวจสอบไขว้กับการวิเคราะห์อิสระจากวิธีหลักของแต่ละวงจร
+    และแสดงค่าประมาณคู่กันเพื่อเปรียบเทียบเมื่อมีวิธีประมาณสำหรับประเภทนั้น</p>
   </footer>
 </main>
 </body>

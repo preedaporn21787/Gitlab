@@ -5,7 +5,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class BiasInputs:
-    """Component values and device parameters for a voltage-divider bias circuit."""
+    """Component values and device parameters for a BJT bias circuit.
+
+    ``bias_type`` selects which topology is solved: ``"voltage_divider"``
+    (the original Lab 2 behaviour), ``"fixed"`` (base-resistor / fixed bias)
+    or ``"emitter_single"`` (emitter bias with a single supply).
+    ``rb_ohm`` is the base resistor used by fixed bias and single-supply
+    emitter bias.
+    """
 
     vcc_v: float
     r1_ohm: float
@@ -14,6 +21,8 @@ class BiasInputs:
     re_ohm: float
     beta: float
     vbe_v: float
+    bias_type: str = "voltage_divider"
+    rb_ohm: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -98,6 +107,107 @@ def solve_approximate(inputs: BiasInputs) -> OperatingPoint:
     )
 
 
+def solve_fixed_bias(inputs: BiasInputs) -> OperatingPoint:
+    """Solve fixed bias (base-resistor bias): VCC -> RB -> Base, VCC -> RC -> Collector,
+    Emitter tied directly to ground. No divider, no emitter resistor."""
+    if inputs.vcc_v <= inputs.vbe_v:
+        return _cutoff_point(0.0, inputs.vcc_v)
+
+    i_b = (inputs.vcc_v - inputs.vbe_v) / inputs.rb_ohm
+    i_c = inputs.beta * i_b
+    i_e = (inputs.beta + 1.0) * i_b
+    v_b = inputs.vbe_v
+    v_e = 0.0
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=v_b,
+        vc_v=v_c,
+        ve_v=v_e,
+        vce_v=v_c - v_e,
+    )
+
+
+def solve_fixed_bias_check(inputs: BiasInputs) -> OperatingPoint:
+    """Independent check for fixed bias: re-derive base current from KVL at the
+    base-emitter loop (VCC = I_B * RB + VBE), written separately from the
+    primary solve."""
+    if inputs.vcc_v <= inputs.vbe_v:
+        return _cutoff_point(0.0, inputs.vcc_v)
+
+    i_b = (inputs.vcc_v - inputs.vbe_v) / inputs.rb_ohm
+    i_c = inputs.beta * i_b
+    i_e = i_b + i_c
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=inputs.vbe_v,
+        vc_v=v_c,
+        ve_v=0.0,
+        vce_v=v_c,
+    )
+
+
+def solve_emitter_bias_single_supply(inputs: BiasInputs) -> OperatingPoint:
+    """Solve emitter bias with a single supply: VCC -> RB -> Base, VCC -> RC ->
+    Collector, Emitter -> RE -> Ground.
+
+    KVL at the base-emitter loop:
+        VCC = I_B * RB + VBE + I_E * RE,  with I_E = (beta + 1) * I_B
+    hence
+        I_B = (VCC - VBE) / (RB + (beta + 1) * RE)
+    """
+    if inputs.vcc_v <= inputs.vbe_v:
+        return _cutoff_point(0.0, inputs.vcc_v)
+
+    denominator = inputs.rb_ohm + (inputs.beta + 1.0) * inputs.re_ohm
+    i_b = (inputs.vcc_v - inputs.vbe_v) / denominator
+    i_c = inputs.beta * i_b
+    i_e = (inputs.beta + 1.0) * i_b
+    v_e = i_e * inputs.re_ohm
+    v_b = inputs.vbe_v + v_e
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=v_b,
+        vc_v=v_c,
+        ve_v=v_e,
+        vce_v=v_c - v_e,
+    )
+
+
+def solve_emitter_bias_single_supply_check(inputs: BiasInputs) -> OperatingPoint:
+    """Independent check for single-supply emitter bias: re-solve the same KVL
+    but grouping terms differently (VCC - I_E * RE - VBE = I_B * RB) to give an
+    algebraically independent result."""
+    if inputs.vcc_v <= inputs.vbe_v:
+        return _cutoff_point(0.0, inputs.vcc_v)
+
+    # Solve for I_E directly: VCC - VBE = I_E * (RE + RB / (beta + 1))
+    effective_re = inputs.re_ohm + inputs.rb_ohm / (inputs.beta + 1.0)
+    i_e = (inputs.vcc_v - inputs.vbe_v) / effective_re
+    i_b = i_e / (inputs.beta + 1.0)
+    i_c = inputs.beta * i_b
+    v_e = i_e * inputs.re_ohm
+    v_b = inputs.vbe_v + v_e
+    v_c = inputs.vcc_v - i_c * inputs.rc_ohm
+    return OperatingPoint(
+        ib_a=i_b,
+        ic_a=i_c,
+        ie_a=i_e,
+        vb_v=v_b,
+        vc_v=v_c,
+        ve_v=v_e,
+        vce_v=v_c - v_e,
+    )
+
+
 @dataclass(frozen=True)
 class RegionReport:
     """Operating region with display copy in English and Thai."""
@@ -112,15 +222,28 @@ class RegionReport:
 SATURATION_VCE_V = 0.3
 
 
+def _is_cutoff(inputs: BiasInputs) -> bool:
+    """True when the base-emitter junction cannot be forward biased."""
+    if inputs.bias_type == "voltage_divider":
+        v_bb, _ = _thevenin_equivalent(inputs)
+        return v_bb <= inputs.vbe_v
+    # Fixed bias and single-supply emitter bias: base fed straight from VCC.
+    return inputs.vcc_v <= inputs.vbe_v
+
+
 def classify_region(inputs: BiasInputs, op: OperatingPoint) -> RegionReport:
     """Classify the operating region, checking cutoff first, then saturation."""
-    v_bb, _ = _thevenin_equivalent(inputs)
-    if v_bb <= inputs.vbe_v:
+    if _is_cutoff(inputs):
+        if inputs.bias_type == "voltage_divider":
+            v_bb, _ = _thevenin_equivalent(inputs)
+            detail = f"V_BB = {v_bb:.3f} V <= V_BE = {inputs.vbe_v:.3f} V"
+        else:
+            detail = f"VCC = {inputs.vcc_v:.3f} V <= V_BE = {inputs.vbe_v:.3f} V"
         return RegionReport(
             region="cutoff",
             label_en="Cutoff",
             label_th="คัตออฟ",
-            detail_en=f"V_BB = {v_bb:.3f} V <= V_BE = {inputs.vbe_v:.3f} V",
+            detail_en=detail,
             message_th="ทรานซิสเตอร์หยุดนำ ไม่มีกระแสคอลเลกเตอร์",
         )
     if op.vce_v <= SATURATION_VCE_V or op.vc_v <= op.vb_v:
@@ -221,16 +344,43 @@ def check_agreement(primary: OperatingPoint, check: OperatingPoint) -> CheckResu
     )
 
 
+def _primary_solve(inputs: BiasInputs) -> OperatingPoint:
+    """เลือกวิธีคำนวณหลักตามประเภทวงจร."""
+    if inputs.bias_type == "fixed":
+        return solve_fixed_bias(inputs)
+    if inputs.bias_type == "emitter_single":
+        return solve_emitter_bias_single_supply(inputs)
+    return solve_thevenin(inputs)
+
+
+def _approximate_solve(inputs: BiasInputs) -> OperatingPoint:
+    """คำนวณแบบประมาณสำหรับเปรียบเทียบ (voltage divider เดิมไม่เปลี่ยน;
+    fixed bias และ emitter_single ใช้ primary solve เป็นค่าประมาณเช่นกัน
+    เพราะโมเดล β คงที่มีคำตอบปิดอยู่แล้ว)"""
+    if inputs.bias_type == "voltage_divider":
+        return solve_approximate(inputs)
+    return _primary_solve(inputs)
+
+
+def _independent_check(inputs: BiasInputs) -> OperatingPoint:
+    """วิธีตรวจสอบอิสระจากวิธีหลักของแต่ละประเภทวงจร."""
+    if inputs.bias_type == "fixed":
+        return solve_fixed_bias_check(inputs)
+    if inputs.bias_type == "emitter_single":
+        return solve_emitter_bias_single_supply_check(inputs)
+    return solve_nodal(inputs)
+
+
 def analyze(inputs: BiasInputs) -> AnalysisResult:
     """Run the primary solve, the approximate solve, the independent check, and the region report."""
-    primary = solve_thevenin(inputs)
-    approximate = solve_approximate(inputs)
+    primary = _primary_solve(inputs)
+    approximate = _approximate_solve(inputs)
     return AnalysisResult(
         inputs=inputs,
         primary=primary,
         approximate=approximate,
         method_gap=_max_relative_difference(primary, approximate),
-        check=check_agreement(primary, solve_nodal(inputs)),
+        check=check_agreement(primary, _independent_check(inputs)),
         region=classify_region(inputs, primary),
     )
 

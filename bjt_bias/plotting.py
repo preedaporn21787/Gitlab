@@ -43,13 +43,16 @@ def _ground(x: float, y: float) -> list[str]:
     ]
 
 
-def circuit_svg(labels: Mapping[str, str]) -> str:
-    """วาดแผนภาพวงจรไบแอสแบบแบ่งแรงดันเป็นสตริง SVG.
+def circuit_svg(labels: Mapping[str, str], bias_type: str = "voltage_divider") -> str:
+    """วาดแผนภาพวงจรไบแอสเป็นสตริง SVG.
 
-    เลย์เอาต์อ้างอิงภาพเป้าหมาย: ขาซ้ายคือตัวแบ่งแรงดัน (R1/R2) ขาขวาคือ RC/RE
-    ทรานซิสเตอร์ NPN อยู่กลางระหว่างสองขา ป้ายอุปกรณ์เป็นอักษร Italic Serif
+    รองรับสามประเภท: ``voltage_divider`` (ตัวแบ่งแรงดัน, เดิมของ Lab 2),
+    ``fixed`` (เบสเรซิสเตอร์/บายัสด์เบียส) และ ``emitter_single``
+    (อิมิตเตอร์เบียส แหล่งจ่ายเดียว).
+
     `labels` คือค่าที่พร้อมแสดง เช่น {"r1": "100 kΩ", "vcc": "12.0 V", ...}
     """
+    bias_type = bias_type if bias_type in ("voltage_divider", "fixed", "emitter_single") else "voltage_divider"
 
     def label_for(key: str) -> str:
         return labels.get(key, "") if labels else ""
@@ -59,6 +62,7 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
     r2_text = label_for("r2")
     rc_text = label_for("rc")
     re_text = label_for("re")
+    rb_text = label_for("rb")
     beta_text = label_for("beta")
 
     # ตำแหน่งหลัก
@@ -71,11 +75,21 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
     circle_cx, circle_cy, circle_r = 163, 190, 28
 
     lines: list[str] = []
+    if bias_type == "voltage_divider":
+        aria = "วงจรไบแอสแบบแบ่งแรงดัน"
+        title = "วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ ไบแอสแบ่งแรงดัน"
+    elif bias_type == "fixed":
+        aria = "วงจรไบแอสแบบบายัสด์เบียส"
+        title = "วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ ไบแอสแบบบายัสด์เบียส (Fixed Bias)"
+    else:
+        aria = "วงจรไบแอสแบบอิมิตเตอร์เบียส แหล่งจ่ายเดียว"
+        title = "วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ อิมิตเตอร์เบียส แหล่งจ่ายเดียว"
+
     lines.append(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
-        'role="img" aria-label="วงจรไบแอสแบบแบ่งแรงดัน">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
+        f'role="img" aria-label="{aria}">'
     )
-    lines.append('<title>วงจรทรานซิสเตอร์ NPN คอมมอน-อีมิเตอร์ ไบแอสแบ่งแรงดัน</title>')
+    lines.append(f'<title>{title}</title>')
     lines.append(
         '<style>'
         '.w{stroke:#1f2430;stroke-width:1.8;fill:none;}'
@@ -96,28 +110,41 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
             f'<tspan dy="-4"> = {_esc(vcc_text)}</tspan></text>'
         )
 
-    # ---------- ขาซ้าย: ตัวแบ่งแรงดัน ----------
-    # R1: จากราง VCC ลงมาที่โหนดเบส
-    lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{left_x}" y2="76" class="w"/>')
-    lines.append(f'<polyline points="{_zigzag(left_x, 76, 140)}" class="w"/>')
-    lines.append(f'<line x1="{left_x}" y1="140" x2="{left_x}" y2="{base_y}" class="w"/>')
-    # โหนดเบส + สายไปขาเบสของทรานซิสเตอร์
+    # ---------- โหนดเบสและสายเบส ----------
     lines.append(f'<circle cx="{left_x}" cy="{base_y}" r="3.5" class="g"/>')
     lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{base_x}" y2="{base_y}" class="w"/>')
-    # R2: จากโหนดเบสลงกราวด์
-    lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{left_x}" y2="210" class="w"/>')
-    lines.append(f'<polyline points="{_zigzag(left_x, 210, 270)}" class="w"/>')
-    lines.append(f'<line x1="{left_x}" y1="270" x2="{left_x}" y2="{ground_y}" class="w"/>')
-    lines.extend(_ground(left_x, ground_y))
 
-    # ---------- ขาขวา: RC และ RE ----------
+    # ---------- วงจรเบียสด้านซ้าย ----------
+    if bias_type == "voltage_divider":
+        # R1: จากราง VCC ลงมาที่โหนดเบส
+        lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{left_x}" y2="76" class="w"/>')
+        lines.append(f'<polyline points="{_zigzag(left_x, 76, 140)}" class="w"/>')
+        lines.append(f'<line x1="{left_x}" y1="140" x2="{left_x}" y2="{base_y}" class="w"/>')
+        # R2: จากโหนดเบสลงกราวด์
+        lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{left_x}" y2="210" class="w"/>')
+        lines.append(f'<polyline points="{_zigzag(left_x, 210, 270)}" class="w"/>')
+        lines.append(f'<line x1="{left_x}" y1="270" x2="{left_x}" y2="{ground_y}" class="w"/>')
+        lines.extend(_ground(left_x, ground_y))
+    else:
+        # RB: จากราง VCC ลงมาที่โหนดเบส (ใช้ร่วมกับ fixed และ emitter_single)
+        lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{left_x}" y2="76" class="w"/>')
+        lines.append(f'<polyline points="{_zigzag(left_x, 76, 140)}" class="w"/>')
+        lines.append(f'<line x1="{left_x}" y1="140" x2="{left_x}" y2="{base_y}" class="w"/>')
+
+    # ---------- ขาขวา ----------
     # RC: จากราง VCC ลงมาที่ขาคอลเลกเตอร์
     lines.append(f'<line x1="{right_x}" y1="{top_y}" x2="{right_x}" y2="76" class="w"/>')
     lines.append(f'<polyline points="{_zigzag(right_x, 76, 140)}" class="w"/>')
-    # RE: จากขาอิมิตเตอร์ลงกราวด์
-    lines.append(f'<polyline points="{_zigzag(right_x, 240, 282)}" class="w"/>')
-    lines.append(f'<line x1="{right_x}" y1="282" x2="{right_x}" y2="{ground_y}" class="w"/>')
-    lines.extend(_ground(right_x, ground_y))
+
+    if bias_type == "voltage_divider" or bias_type == "emitter_single":
+        # RE: จากขาอิมิตเตอร์ลงกราวด์ (ไม่มีใน fixed bias)
+        lines.append(f'<polyline points="{_zigzag(right_x, 240, 282)}" class="w"/>')
+        lines.append(f'<line x1="{right_x}" y1="282" x2="{right_x}" y2="{ground_y}" class="w"/>')
+        lines.extend(_ground(right_x, ground_y))
+    else:
+        # Fixed bias: อิมิตเตอร์ต่อตรงเข้ากราวด์
+        lines.append(f'<line x1="{right_x}" y1="240" x2="{right_x}" y2="{ground_y}" class="w"/>')
+        lines.extend(_ground(right_x, ground_y))
 
     # ---------- ทรานซิสเตอร์ NPN ----------
     lines.append(
@@ -128,7 +155,7 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
     lines.append(f'<line x1="{base_x}" y1="178" x2="{base_x}" y2="202" class="w"/>')
     # ขาคอลเลกเตอร์: จากปลายบนของแท่งฐานขึ้นไปขวายัง RC
     lines.append(f'<line x1="{base_x}" y1="178" x2="{right_x}" y2="140" class="w"/>')
-    # ขาอิมิตเตอร์: จากปลายล่างของแท่งฐานลงไปขวายัง RE
+    # ขาอิมิตเตอร์: จากปลายล่างของแท่งฐานลงไปขวา
     lines.append(f'<line x1="{base_x}" y1="202" x2="{right_x}" y2="240" class="w"/>')
     # ลูกศรขาอิมิตเตอร์ของ NPN ชี้ออกนอกตัวทรานซิสเตอร์ (ลงขวา)
     lines.append('<polygon points="188.8,230.5 180.7,227.6 184.6,223.1" fill="#1f2430"/>')
@@ -143,18 +170,28 @@ def circuit_svg(labels: Mapping[str, str]) -> str:
     def value_label(x: float, y: float, value: str, anchor: str) -> str:
         return f'<text x="{x}" y="{y}" text-anchor="{anchor}" class="lbl">{_esc(value)}</text>'
 
-    lines.append(name_label(left_x - 14, 100, "R", "1", "end"))
-    if r1_text:
-        lines.append(value_label(left_x - 14, 118, r1_text, "end"))
-    lines.append(name_label(left_x - 14, 240, "R", "2", "end"))
-    if r2_text:
-        lines.append(value_label(left_x - 14, 258, r2_text, "end"))
+    # ป้ายตัวต้านทานด้านซ้าย (R1 หรือ RB)
+    left_name = "R" if bias_type == "voltage_divider" else "R"
+    left_sub = "1" if bias_type == "voltage_divider" else "B"
+    lines.append(name_label(left_x - 14, 100, left_name, left_sub, "end"))
+    left_value = r1_text if bias_type == "voltage_divider" else rb_text
+    if left_value:
+        lines.append(value_label(left_x - 14, 118, left_value, "end"))
+
+    if bias_type == "voltage_divider":
+        lines.append(name_label(left_x - 14, 240, "R", "2", "end"))
+        if r2_text:
+            lines.append(value_label(left_x - 14, 258, r2_text, "end"))
+
+    # ป้ายตัวต้านทานด้านขวา
     lines.append(name_label(right_x + 14, 100, "R", "C", "start"))
     if rc_text:
         lines.append(value_label(right_x + 14, 118, rc_text, "start"))
-    lines.append(name_label(right_x + 14, 240, "R", "E", "start"))
-    if re_text:
-        lines.append(value_label(right_x + 14, 258, re_text, "start"))
+
+    if bias_type == "voltage_divider" or bias_type == "emitter_single":
+        lines.append(name_label(right_x + 14, 240, "R", "E", "start"))
+        if re_text:
+            lines.append(value_label(right_x + 14, 258, re_text, "start"))
 
     # ป้ายทรานซิสเตอร์
     lines.append(name_label(right_x + 14, 168, "Q", "1", "start"))
