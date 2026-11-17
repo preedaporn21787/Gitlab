@@ -71,7 +71,7 @@
 - GitHub URL: https://github.com/preedaporn21787/Gitlab
 - Commit SHA: `6e05e4f`
 - Branch: `feature/multi-bias-types`
-- วิธีรัน: `.\run.ps1` หรือ `python -m flask --app app run` แล้วเปิด `http://127.0.0.1:5000`
+- วิธีรัน: `.\run.ps1` หรือ `python -m flask --app app run` แล้วเปิด [http://127.0.0.1:5000](http://127.0.0.1:5000) *(ใช้ได้เฉพาะบนเครื่องที่รัน Flask server เท่านั้น)*
 
 ## บทบาท MCP
 
