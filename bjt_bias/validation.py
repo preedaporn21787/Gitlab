@@ -128,6 +128,16 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
             raw[field + "_unit"] = unit_text if unit_text is not None else ""
             continue
 
+        if field == "re" and bias_type == "fixed":
+            # ข้ามการบังคับกรอก RE เมื่อเป็น fixed bias (อิมิตเตอร์ต่อตรงเข้ากราวด์ ไม่มี RE)
+            text = form.get(field)
+            raw[field] = "" if text is None else str(text).strip()
+            unit_text = form.get(field + "_unit")
+            unit = "" if unit_text is None else str(unit_text).strip()
+            units[field] = unit if unit else DEFAULT_UNIT[field]
+            raw[field + "_unit"] = unit_text if unit_text is not None else ""
+            continue
+
         label = FIELD_LABELS[field]
         text = form.get(field)
         raw[field] = "" if text is None else str(text).strip()
@@ -158,10 +168,12 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
         if field in values and values[field] <= 0:
             errors[field] = f"{FIELD_LABELS[field]} ต้องมากกว่า 0"
 
-    # R1/R2 ที่เว้นว่างได้: กำหนดค่า default กัน BiasInputs พัง
+    # R1/R2/RE ที่เว้นว่างได้: กำหนดค่า default กัน BiasInputs พัง
     if bias_type != "voltage_divider":
         values.setdefault("r1", 0.0)
         values.setdefault("r2", 0.0)
+    if bias_type == "fixed":
+        values.setdefault("re", 0.0)
 
     if "beta" in values and values["beta"] < 1:
         errors["beta"] = "β ต้องมีค่าอย่างน้อย 1"
