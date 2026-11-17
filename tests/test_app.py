@@ -109,3 +109,38 @@ def test_higher_vcc_raises_collector_current(client):
 def test_template_has_no_script_tag():
     with open("templates/index.html", encoding="utf-8") as handle:
         assert "<script" not in handle.read().lower()
+
+
+FIXED_VALID = {
+    **VALID,
+    "bias_type": "fixed",
+    "rb": "220", "rb_unit": "kΩ",
+}
+
+
+def test_fixed_bias_post_shows_results(client):
+    body = client.post("/", data=FIXED_VALID).get_data(as_text=True)
+    assert "Fixed Bias" in body
+    assert "Active region" in body or "Cutoff" in body or "Saturation" in body
+    assert "<svg" in body
+
+
+def test_emitter_single_bias_post_shows_results(client):
+    body = client.post(
+        "/",
+        data={**VALID, "bias_type": "emitter_single", "rb": "470", "rb_unit": "kΩ"},
+    ).get_data(as_text=True)
+    assert "Emitter Bias" in body
+    assert "<svg" in body
+
+
+def test_fixed_bias_requires_rb(client):
+    body = client.post("/", data={**VALID, "bias_type": "fixed"}).get_data(as_text=True)
+    assert "RB" in body or "rb" in body.lower()
+
+
+def test_voltage_divider_still_works_after_changes(client):
+    body = client.post("/", data=VALID_UNITS).get_data(as_text=True)
+    assert "1.32" in body
+    assert "4.45" in body
+    assert "Active region" in body

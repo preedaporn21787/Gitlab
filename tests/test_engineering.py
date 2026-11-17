@@ -1,6 +1,16 @@
 import pytest
 
-from bjt_bias.engineering import BiasInputs, OperatingPoint, solve_thevenin
+from bjt_bias.engineering import (
+    BiasInputs,
+    OperatingPoint,
+    analyze,
+    classify_region,
+    solve_thevenin,
+    solve_fixed_bias,
+    solve_fixed_bias_check,
+    solve_emitter_bias_single_supply,
+    solve_emitter_bias_single_supply_check,
+)
 
 GOLDEN = BiasInputs(12.0, 47_000.0, 10_000.0, 4_700.0, 1_000.0, 150.0, 0.7)
 SATURATED = BiasInputs(12.0, 47_000.0, 22_000.0, 1_000.0, 100.0, 150.0, 0.7)
@@ -207,5 +217,146 @@ def test_approximate_within_15_percent_of_exact_for_normal_case():
     approx = solve_approximate(GOLDEN)
     diff = abs(primary.ic_a - approx.ic_a) / max(1.0, abs(primary.ic_a))
     assert diff < 0.15
+
+
+# ---------- Fixed Bias ----------
+
+FIXED_ACTIVE = BiasInputs(
+    vcc_v=12.0, r1_ohm=0.0, r2_ohm=0.0, rc_ohm=1_000.0, re_ohm=0.0,
+    beta=100.0, vbe_v=0.7, bias_type="fixed", rb_ohm=220_000.0,
+)
+FIXED_CUTOFF = BiasInputs(
+    vcc_v=0.5, r1_ohm=0.0, r2_ohm=0.0, rc_ohm=1_000.0, re_ohm=0.0,
+    beta=100.0, vbe_v=0.7, bias_type="fixed", rb_ohm=220_000.0,
+)
+
+
+def test_fixed_bias_active_values():
+    op = solve_fixed_bias(FIXED_ACTIVE)
+    # I_B = (VCC - VBE) / RB = 11.3 / 220k = 51.36 uA
+    assert op.ib_a == pytest.approx(11.3 / 220_000.0, rel=1e-9)
+    # I_C = beta * I_B
+    assert op.ic_a == pytest.approx(100.0 * op.ib_a, rel=1e-9)
+    # I_E = (beta + 1) * I_B
+    assert op.ie_a == pytest.approx(101.0 * op.ib_a, rel=1e-9)
+    # V_E = 0 (emitter grounded directly)
+    assert op.ve_v == 0.0
+    # V_B = VBE
+    assert op.vb_v == pytest.approx(0.7, rel=1e-9)
+    # V_C = VCC - I_C * RC
+    assert op.vc_v == pytest.approx(12.0 - op.ic_a * 1000.0, rel=1e-9)
+    # V_CE = V_C - V_E
+    assert op.vce_v == pytest.approx(op.vc_v, rel=1e-9)
+
+
+def test_fixed_bias_cutoff_returns_zero_currents():
+    op = solve_fixed_bias(FIXED_CUTOFF)
+    assert op.ib_a == 0.0
+    assert op.ic_a == 0.0
+    assert op.ie_a == 0.0
+    assert op.ve_v == 0.0
+    assert op.vc_v == pytest.approx(0.5, rel=1e-9)
+    assert op.vce_v == pytest.approx(0.5, rel=1e-9)
+
+
+def test_fixed_bias_primary_matches_check():
+    primary = solve_fixed_bias(FIXED_ACTIVE)
+    check = solve_fixed_bias_check(FIXED_ACTIVE)
+    assert check.ic_a == pytest.approx(primary.ic_a, rel=1e-9, abs=1e-12)
+    assert check.ib_a == pytest.approx(primary.ib_a, rel=1e-9, abs=1e-15)
+    assert check.vce_v == pytest.approx(primary.vce_v, rel=1e-9, abs=1e-9)
+
+
+# ---------- Emitter Bias (Single Supply) ----------
+
+EMITTER_ACTIVE = BiasInputs(
+    vcc_v=15.0, r1_ohm=0.0, r2_ohm=0.0, rc_ohm=2_200.0, re_ohm=1_000.0,
+    beta=100.0, vbe_v=0.7, bias_type="emitter_single", rb_ohm=470_000.0,
+)
+EMITTER_CUTOFF = BiasInputs(
+    vcc_v=0.5, r1_ohm=0.0, r2_ohm=0.0, rc_ohm=2_200.0, re_ohm=1_000.0,
+    beta=100.0, vbe_v=0.7, bias_type="emitter_single", rb_ohm=470_000.0,
+)
+
+
+def test_emitter_bias_single_supply_values():
+    op = solve_emitter_bias_single_supply(EMITTER_ACTIVE)
+    # I_B = (VCC - VBE) / (RB + (beta + 1) * RE)
+    denominator = 470_000.0 + 101.0 * 1_000.0
+    assert op.ib_a == pytest.approx((15.0 - 0.7) / denominator, rel=1e-9)
+    # I_C = beta * I_B
+    assert op.ic_a == pytest.approx(100.0 * op.ib_a, rel=1e-9)
+    # I_E = (beta + 1) * I_B
+    assert op.ie_a == pytest.approx(101.0 * op.ib_a, rel=1e-9)
+    # V_E = I_E * RE
+    assert op.ve_v == pytest.approx(op.ie_a * 1000.0, rel=1e-9)
+    # V_B = VBE + V_E
+    assert op.vb_v == pytest.approx(0.7 + op.ve_v, rel=1e-9)
+    # V_C = VCC - I_C * RC
+    assert op.vc_v == pytest.approx(15.0 - op.ic_a * 2200.0, rel=1e-9)
+    # V_CE = V_C - V_E
+    assert op.vce_v == pytest.approx(op.vc_v - op.ve_v, rel=1e-9)
+
+
+def test_emitter_bias_single_supply_cutoff_returns_zero_currents():
+    op = solve_emitter_bias_single_supply(EMITTER_CUTOFF)
+    assert op.ib_a == 0.0
+    assert op.ic_a == 0.0
+    assert op.ie_a == 0.0
+    assert op.ve_v == 0.0
+    assert op.vc_v == pytest.approx(0.5, rel=1e-9)
+    assert op.vce_v == pytest.approx(0.5, rel=1e-9)
+
+
+def test_emitter_bias_single_supply_primary_matches_check():
+    primary = solve_emitter_bias_single_supply(EMITTER_ACTIVE)
+    check = solve_emitter_bias_single_supply_check(EMITTER_ACTIVE)
+    assert check.ic_a == pytest.approx(primary.ic_a, rel=1e-9, abs=1e-12)
+    assert check.ib_a == pytest.approx(primary.ib_a, rel=1e-9, abs=1e-15)
+    assert check.vce_v == pytest.approx(primary.vce_v, rel=1e-9, abs=1e-9)
+
+
+# ---------- analyze() routes to correct solver ----------
+
+
+def test_analyze_uses_fixed_bias_for_fixed_type():
+    result = analyze(FIXED_ACTIVE)
+    assert result.inputs.bias_type == "fixed"
+    assert result.primary == solve_fixed_bias(FIXED_ACTIVE)
+
+
+def test_analyze_uses_emitter_single_for_emitter_single_type():
+    result = analyze(EMITTER_ACTIVE)
+    assert result.inputs.bias_type == "emitter_single"
+    assert result.primary == solve_emitter_bias_single_supply(EMITTER_ACTIVE)
+
+
+def test_analyze_uses_thevenin_for_voltage_divider():
+    result = analyze(GOLDEN)
+    assert result.inputs.bias_type == "voltage_divider"
+    assert result.primary == solve_thevenin(GOLDEN)
+
+
+# ---------- classify_region works for new types ----------
+
+
+def test_classify_region_fixed_bias_active():
+    report = classify_region(FIXED_ACTIVE, solve_fixed_bias(FIXED_ACTIVE))
+    assert report.region == "active"
+
+
+def test_classify_region_fixed_bias_cutoff():
+    report = classify_region(FIXED_CUTOFF, solve_fixed_bias(FIXED_CUTOFF))
+    assert report.region == "cutoff"
+
+
+def test_classify_region_emitter_single_active():
+    report = classify_region(EMITTER_ACTIVE, solve_emitter_bias_single_supply(EMITTER_ACTIVE))
+    assert report.region == "active"
+
+
+def test_classify_region_emitter_single_cutoff():
+    report = classify_region(EMITTER_CUTOFF, solve_emitter_bias_single_supply(EMITTER_CUTOFF))
+    assert report.region == "cutoff"
 
 

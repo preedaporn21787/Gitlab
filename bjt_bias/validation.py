@@ -6,6 +6,14 @@ from dataclasses import dataclass
 
 from .engineering import BiasInputs
 
+BIAS_TYPES = ("voltage_divider", "fixed", "emitter_single")
+
+BIAS_TYPE_LABELS = {
+    "voltage_divider": "Voltage Divider Bias",
+    "fixed": "Fixed Bias",
+    "emitter_single": "Emitter Bias (Single Supply)",
+}
+
 FIELDS = ("vcc", "r1", "r2", "rc", "re", "beta", "vbe")
 RESISTANCE_FIELDS = ("r1", "r2", "rc", "re")
 
@@ -54,6 +62,7 @@ class ParseResult:
     warnings: list[str]
     raw: dict[str, str]
     units: dict[str, str]
+    bias_type: str
 
 
 def _parse_number(raw_value: str | None, label: str) -> tuple[float | None, str | None]:
@@ -76,7 +85,49 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
     errors: dict[str, str] = {}
     values: dict[str, float] = {}
 
+    bias_type = form.get("bias_type")
+    bias_type = bias_type if bias_type in BIAS_TYPES else "voltage_divider"
+    raw["bias_type"] = bias_type
+
+    # อ่านค่า RB สำหรับ fixed bias และ emitter bias แหล่งจ่ายเดียว
+    rb_text = form.get("rb")
+    raw["rb"] = "" if rb_text is None else str(rb_text).strip()
+    rb_unit_text = form.get("rb_unit")
+    rb_unit = "" if rb_unit_text is None else str(rb_unit_text).strip()
+    if not rb_unit:
+        rb_unit = "kΩ"
+    units["rb"] = rb_unit
+    raw["rb_unit"] = rb_unit_text if rb_unit_text is not None else ""
+    rb_value: float | None = None
+    if bias_type in ("fixed", "emitter_single"):
+        rb_value, rb_error = _parse_number(raw["rb"], "RB")
+        if rb_error is None:
+            factor = UNIT_FACTORS["r1"].get(rb_unit)
+            if factor is None:
+                errors["rb"] = "หน่วยของ RB ไม่ถูกต้อง"
+            else:
+                rb_value = rb_value * factor
+                if not math.isfinite(rb_value):
+                    errors["rb"] = "RB ต้องเป็นค่าจำกัด (ไม่ใช่ NaN หรือ inf)"
+                elif rb_value <= 0:
+                    errors["rb"] = "RB ต้องมากกว่า 0"
+        else:
+            errors["rb"] = rb_error
+
+    # R1/R2 จำเป็นเฉพาะ voltage divider; fixed และ emitter_single ใช้ RB แทน
+    divider_required = bias_type == "voltage_divider"
+
     for field in FIELDS:
+        if field in ("r1", "r2") and not divider_required:
+            # ข้ามการบังคับกรอก R1/R2 เมื่อไม่ใช่ตัวแบ่งแรงดัน
+            text = form.get(field)
+            raw[field] = "" if text is None else str(text).strip()
+            unit_text = form.get(field + "_unit")
+            unit = "" if unit_text is None else str(unit_text).strip()
+            units[field] = unit if unit else DEFAULT_UNIT[field]
+            raw[field + "_unit"] = unit_text if unit_text is not None else ""
+            continue
+
         label = FIELD_LABELS[field]
         text = form.get(field)
         raw[field] = "" if text is None else str(text).strip()
@@ -107,6 +158,11 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
         if field in values and values[field] <= 0:
             errors[field] = f"{FIELD_LABELS[field]} ต้องมากกว่า 0"
 
+    # R1/R2 ที่เว้นว่างได้: กำหนดค่า default กัน BiasInputs พัง
+    if bias_type != "voltage_divider":
+        values.setdefault("r1", 0.0)
+        values.setdefault("r2", 0.0)
+
     if "beta" in values and values["beta"] < 1:
         errors["beta"] = "β ต้องมีค่าอย่างน้อย 1"
 
@@ -128,7 +184,12 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
 
     if errors:
         return ParseResult(
-            inputs=None, errors=errors, warnings=warnings, raw=raw, units=units
+            inputs=None,
+            errors=errors,
+            warnings=warnings,
+            raw=raw,
+            units=units,
+            bias_type=bias_type,
         )
 
     inputs = BiasInputs(
@@ -139,5 +200,10 @@ def parse_inputs(form: Mapping[str, str]) -> ParseResult:
         re_ohm=values["re"],
         beta=values["beta"],
         vbe_v=values["vbe"],
+        bias_type=bias_type,
+        rb_ohm=rb_value if rb_value is not None else 0.0,
     )
-    return ParseResult(inputs=inputs, errors={}, warnings=warnings, raw=raw, units=units)
+    return ParseResult(
+        inputs=inputs, errors={}, warnings=warnings, raw=raw, units=units,
+        bias_type=bias_type,
+    )
