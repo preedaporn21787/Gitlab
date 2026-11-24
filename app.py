@@ -1,9 +1,14 @@
-"""Flask front end for the BJT common-emitter DC bias calculator."""
+"""Flask front end for the BJT DC bias calculator and CE amplifier simulator."""
+
+from datetime import datetime, timezone
 
 from flask import Flask, render_template, request
 
 from bjt_bias.engineering import analyze
 from bjt_bias.plotting import circuit_svg, load_line_svg
+from bjt_bias.spice_engine import MODEL_NAME, run_simulation
+from bjt_bias.spice_plots import ac_svg, transient_svg
+from bjt_bias.spice_validation import DEFAULTS, parse_spice_inputs
 from bjt_bias.validation import BIAS_TYPE_LABELS, parse_inputs
 
 
@@ -67,6 +72,39 @@ def create_app() -> Flask:
             chart_svg=chart_svg,
             bias_type=parsed.bias_type,
             bias_type_labels=BIAS_TYPE_LABELS,
+        )
+
+    @app.route("/simulate", methods=["GET", "POST"])
+    def simulate():
+        if request.method == "GET":
+            return render_template(
+                "simulator.html",
+                raw=DEFAULTS, units={}, errors={}, analysis="dc",
+                defaults=DEFAULTS, sim_result=None, status="idle",
+                ac_plot="", tran_plot="", run_at=None, model=MODEL_NAME,
+            )
+
+        parsed = parse_spice_inputs(request.form)
+        analysis = parsed.raw.get("analysis", "dc")
+        if parsed.inputs is None:
+            return render_template(
+                "simulator.html",
+                raw=parsed.raw, units=parsed.units, errors=parsed.errors,
+                analysis=analysis, defaults=DEFAULTS, sim_result=None,
+                status="invalid", ac_plot="", tran_plot="", run_at=None,
+                model=MODEL_NAME,
+            )
+
+        sim_result = run_simulation(parsed.inputs)
+        ac_plot = ac_svg(sim_result.ac) if sim_result.ac else ""
+        tran_plot = transient_svg(sim_result.transient) if sim_result.transient else ""
+        return render_template(
+            "simulator.html",
+            raw=parsed.raw, units=parsed.units, errors=parsed.errors,
+            analysis=analysis, defaults=DEFAULTS, sim_result=sim_result,
+            status=sim_result.status, ac_plot=ac_plot, tran_plot=tran_plot,
+            run_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            model=MODEL_NAME,
         )
 
     return app

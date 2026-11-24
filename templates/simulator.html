@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 04: CE Amplifier Simulator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% set ohms = ['Ω', 'kΩ', 'MΩ'] %}
+{% set caps = ['nF', 'µF'] %}
+{% set amps = ['mV', 'V'] %}
+{% set freqs = ['Hz', 'kHz', 'MHz'] %}
+{% set times = ['ms', 'µs'] %}
+{% set status_labels = {
+  'idle': 'ยังไม่ได้รัน', 'invalid': 'ข้อมูลนำเข้าไม่ถูกต้อง',
+  'success': 'Success — ngspice รันจริง', 'error': 'Engine error',
+  'timeout': 'Engine timeout', 'engine_missing': 'Engine ไม่พร้อม'
+} %}
+{% macro input_field(name, label, choices=none, fixed_unit='') %}
+{% set current_unit = raw.get(name ~ '_unit', defaults.get(name ~ '_unit', fixed_unit)) %}
+<div class="field">
+  <label for="{{ name }}">{{ label|safe }}</label>
+  <div class="input-with-unit">
+    <input type="text" id="{{ name }}" name="{{ name }}" value="{{ raw.get(name, defaults.get(name, '')) }}">
+    {% if choices %}
+    <select name="{{ name }}_unit" aria-label="Unit for {{ name }}">
+      {% for unit in choices %}
+      <option value="{{ unit }}"{% if current_unit == unit %} selected{% endif %}>{{ unit }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <span class="unit">{{ fixed_unit }}</span>
+    {% endif %}
+  </div>
+  {% if errors.get(name) %}<p class="error">{{ errors[name] }}</p>{% endif %}
+</div>
+{% endmacro %}
+<main>
+  <header class="lab-header">
+    <div class="brand">
+      <div class="brand-text">
+        <h1>Lab 04: CE Amplifier Simulator</h1>
+        <p class="course">ENG29 2121 — Common-Emitter, Voltage Divider Bias ·
+          <a href="/">กลับไป Lab 03 DC Bias</a>
+        </p>
+      </div>
+    </div>
+    <div class="subject-badge">
+      <span>Engine: ngspice batch (real run)</span>
+    </div>
+  </header>
+
+  <div class="sim-layout">
+    <section class="card input-card">
+      <h2 class="card-title">Analysis &amp; Parameters</h2>
+      <form method="post" action="/simulate" id="sim-form">
+        <fieldset class="setting-group">
+          <legend>Analysis (เลือก 1 ต่อการรัน)</legend>
+          <div class="analysis-choice">
+            <label><input type="radio" name="analysis" value="dc"{% if analysis == 'dc' %} checked{% endif %}> DC (.op)</label>
+            <label><input type="radio" name="analysis" value="ac"{% if analysis == 'ac' %} checked{% endif %}> AC (.ac)</label>
+            <label><input type="radio" name="analysis" value="transient"{% if analysis == 'transient' %} checked{% endif %}> Transient (.tran)</label>
+          </div>
+          {% if errors.get('analysis') %}<p class="error">{{ errors['analysis'] }}</p>{% endif %}
+        </fieldset>
+
+        <fieldset class="setting-group">
+          <legend>DC circuit — วงจรอ้างอิง</legend>
+          {{ input_field('vcc', 'V<sub>CC</sub> (Supply)', fixed_unit='V') }}
+          {{ input_field('r1', 'R<sub>1</sub> (Upper divider)', ohms) }}
+          {{ input_field('r2', 'R<sub>2</sub> (Lower divider)', ohms) }}
+          {{ input_field('rc', 'R<sub>C</sub> (Collector)', ohms) }}
+          {{ input_field('re', 'R<sub>E</sub> (Emitter)', ohms) }}
+          {{ input_field('rl', 'R<sub>L</sub> (Load)', ohms) }}
+          {{ input_field('cin', 'C<sub>in</sub> (Coupling)', caps) }}
+          {{ input_field('cout', 'C<sub>out</sub> (Coupling)', caps) }}
+        </fieldset>
+
+        <fieldset class="setting-group">
+          <legend>Source — 10 mV peak, 1 kHz ตามใบงาน</legend>
+          {{ input_field('amplitude', 'Amplitude (peak)', amps) }}
+          {{ input_field('frequency', 'Frequency', freqs) }}
+        </fieldset>
+
+        <fieldset class="setting-group" id="ac-settings">
+          <legend>AC sweep — ใช้เฉพาะ Analysis = AC</legend>
+          {{ input_field('ac_start', 'Start frequency', freqs) }}
+          {{ input_field('ac_stop', 'Stop frequency', freqs) }}
+          {{ input_field('ac_points', 'Points / decade', fixed_unit='') }}
+        </fieldset>
+
+        <fieldset class="setting-group" id="tran-settings">
+          <legend>Transient — ใช้เฉพาะ Analysis = Transient</legend>
+          {{ input_field('tran_stop', 'Stop time', times) }}
+          {{ input_field('max_step', 'Max step', times) }}
+        </fieldset>
+
+        <button type="submit">Run ngspice</button>
+      </form>
+    </section>
+
+    <section class="card plot-card">
+      <h2 class="card-title">Solver Output Plots</h2>
+      <div class="plot-stack">
+        {% if ac_plot %}
+        <div class="plot-panel">
+          <h3>AC response — |Vout / Vin| and phase</h3>
+          <div class="plot-wrapper">{{ ac_plot|safe }}</div>
+          <p class="source-note">Vin = node <code>vin</code> (ฝั่ง_source ก่อน C<sub>in</sub>), Vout = node <code>vout</code> ( across R<sub>L</sub>). ค่า gain/phase คำนวณจาก <code>v(vout)/v(vin)</code> ของ ngspice</p>
+        </div>
+        {% endif %}
+        {% if tran_plot %}
+        <div class="plot-panel">
+          <h3>Transient — Vin / Vout</h3>
+          <div class="plot-wrapper">{{ tran_plot|safe }}</div>
+          <p class="source-note">Vout กลับเฟสกับ Vin (common-emitter) — ดูค่าจาก ngspice <code>.tran</code> ไม่ใช่กราฟจำลอง</p>
+        </div>
+        {% endif %}
+        {% if not ac_plot and not tran_plot %}
+        <p class="placeholder">เลือก AC หรือ Transient แล้วกด Run ngspice เพื่อดูกราฟจากผลลัพธ์จริง</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card results-card">
+      <h2 class="card-title">Engine Status &amp; Values</h2>
+      <div class="sim-status status-{{ status }}" role="status">
+        <strong>{{ status_labels.get(status, status) }}</strong>
+        {% if sim_result %}<span class="status-message">{{ sim_result.message }}</span>{% endif %}
+      </div>
+
+      {% if errors %}
+      <ul class="warnings sim-errors">
+        {% for field, message in errors.items() %}<li><b>{{ field }}</b>: {{ message }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if sim_result and not sim_result.status == 'success' and sim_result.log %}
+      <details class="engine-log">
+        <summary>ngspice log</summary>
+        <pre>{{ sim_result.log[:4000] }}</pre>
+      </details>
+      {% endif %}
+
+      {% if sim_result and sim_result.op %}
+      <h3>DC operating point — จาก ngspice .op</h3>
+      <table class="results-table spice-table">
+        <thead><tr><th>ค่า</th><th>SPICE</th><th>หน่วย</th></tr></thead>
+        <tbody>
+          <tr><td>V<sub>B</sub></td><td>{{ '%.3f'|format(sim_result.op.vb_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>E</sub></td><td>{{ '%.3f'|format(sim_result.op.ve_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>C</sub></td><td>{{ '%.3f'|format(sim_result.op.vc_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>CE</sub></td><td>{{ '%.3f'|format(sim_result.op.vce_v) }}</td><td>V</td></tr>
+          <tr><td>I<sub>C</sub></td><td>{{ '%.2f'|format(sim_result.op.ic_a * 1000) }}</td><td>mA</td></tr>
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if sim_result and sim_result.ac %}
+      <h3>AC summary — จาก ngspice .ac</h3>
+      <table class="results-table spice-table">
+        <thead><tr><th>Frequency</th><th>Gain</th><th>Phase</th></tr></thead>
+        <tbody>
+          {% for point in sim_result.ac[::((sim_result.ac|length // 6) or 1)] %}
+          <tr><td>{{ '%.3g'|format(point.frequency_hz) }} Hz</td>
+              <td>{{ '%.3f'|format(point.gain) }}</td>
+              <td>{{ '%.1f'|format(point.phase_deg) }}°</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if sim_result and sim_result.transient %}
+      <h3>Transient summary — จาก ngspice .tran</h3>
+      <p class="source-note">Points: {{ sim_result.transient|length }} ·
+        Vin peak ≈ {{ '%.4f'|format((sim_result.transient|map(attribute='vin_v')|max) or 0) }} V ·
+        Vout peak ≈ {{ '%.4f'|format((sim_result.transient|map(attribute='vout_v')|max) or 0) }} V</p>
+      {% endif %}
+
+      <footer class="provenance">
+        <p><b>Engine:</b> {{ sim_result.engine_version if sim_result and sim_result.engine_version else 'not reported' }}</p>
+        <p><b>Analysis:</b> {{ sim_result.analysis|upper if sim_result else analysis|upper }}
+          · <b>Run at (UTC):</b> {{ run_at or '—' }}</p>
+        <p><b>Model:</b> {{ sim_result.model if sim_result else model }} — local reference model
+          (IS=1e-14 BF=100 VAF=100), ไม่ใช่โมเดลที่ผู้สอนรับรอง</p>
+        <p class="source-note">ค่าด้านบนเป็นผลจาก ngspice เท่านั้น ค่า analytical ของ Lab 03 อยู่ที่หน้า
+          <a href="/">DC Bias</a> และไม่ได้นำมาปนกับตารางนี้</p>
+        {% if sim_result and sim_result.netlist %}
+        <details class="engine-log">
+          <summary>Netlist ที่ส่งให้ engine จริง</summary>
+          <pre>{{ sim_result.netlist }}</pre>
+        </details>
+        {% endif %}
+      </footer>
+    </section>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='simulator.js') }}"></script>
+</body>
+</html>
