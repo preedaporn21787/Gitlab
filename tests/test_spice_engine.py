@@ -1,3 +1,7 @@
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from bjt_bias.spice_engine import (
@@ -66,3 +70,15 @@ def test_real_dc_changes_when_re_changes():
     changed = run_simulation(parse_spice_inputs(dict(DEFAULTS, re="2")).inputs)
     assert base.status == "success" and changed.status == "success"
     assert base.op.ic_a > changed.op.ic_a
+
+
+@pytest.mark.skipif(executable_path() is None, reason="ngspice not installed")
+def test_module_version_check_reports_console_engine_without_hanging():
+    project_root = Path(__file__).resolve().parents[1]
+    proc = subprocess.run(
+        [sys.executable, "-m", "bjt_bias.spice_engine"],
+        cwd=project_root, capture_output=True, text=True, timeout=10,
+    )
+    assert proc.returncode == 0
+    assert "ngspice_con" in proc.stdout.lower()
+    assert "ngspice-47" in proc.stdout

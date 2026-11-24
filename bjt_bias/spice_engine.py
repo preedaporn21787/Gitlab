@@ -285,3 +285,22 @@ def run_simulation(inputs: SpiceInput, timeout_s: float = 30.0) -> SimulationRes
             engine_version=version, netlist=netlist, log=log,
             raw_path="run.raw", op=op, ac=ac_points, transient=tran_points,
         )
+
+
+def _print_version_check() -> int:
+    """Setup check: report the batch executable and its version, never the GUI binary."""
+    exe = executable_path()
+    if exe is None:
+        print("ngspice not found. Install ngspice 47 or set NGSPICE_EXECUTABLE.")
+        return 1
+    print(f"executable: {exe}")
+    version = engine_version(exe)
+    if version is None:
+        print("version: unavailable (engine did not answer -v within 5s)")
+        return 1
+    print(f"version: {version}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_print_version_check())

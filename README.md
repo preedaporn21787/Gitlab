@@ -54,6 +54,22 @@ python -m venv .venv
 
 เปิด [http://127.0.0.1:5000](http://127.0.0.1:5000) *(ใช้ได้เฉพาะบนเครื่องที่รัน Flask server เท่านั้น)*
 
+### ตรวจสอบเวอร์ชัน ngspice (Lab 04 Setup)
+
+ใช้คำสั่งนี้จากโฟลเดอร์โปรเจกต์ — มันเลือก **console build** ให้เองและมี timeout จึงไม่ค้าง:
+
+```powershell
+.\.venv\Scripts\python -m bjt_bias.spice_engine
+```
+
+ผลที่ควรเห็นคือ `executable: ...\ngspice_con.EXE` และ `version: ngspice-47`
+
+> **ทำไมพิมพ์ `ngspice -v` แล้วไม่ขึ้น:** ไฟล์ `ngspice.exe` ในแพ็กเกจ 47 เป็น GUI build
+> ที่ไม่พิมพ์ข้อความเวอร์ชันลงคอนโซลและจะค้างรอ input ให้ใช้ `ngspice_con -v` แทน
+> (หรือ `ngspice_con --version`) นอกจากนี้ terminal ที่เปิดก่อนติดตั้งจะยังไม่เห็น
+> user PATH ให้เปิด terminal ใหม่ หรือรันคำสั่งด้านบนซึ่งมี fallback path อยู่แล้ว
+> ถ้าติดตั้งตำแหน่งอื่นให้ตั้ง `NGSPICE_EXECUTABLE` ชี้ไปที่ `ngspice_con.exe`
+
 ### การรันเทสต์
 
 ```powershell
