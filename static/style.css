@@ -444,6 +444,29 @@ button:hover {
   color: var(--teal);
 }
 
+/* Back link styling - makes it look like a clickable box/card */
+.lab-header a.back-to-lab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--teal);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.lab-header a.back-to-lab:hover {
+  background: var(--active);
+  border-color: var(--teal);
+  color: var(--active-ink);
+  text-decoration: none;
+}
+
 .sim-circuit {
   margin: 0 0 0.9rem;
   padding: 0 0 0.8rem;
