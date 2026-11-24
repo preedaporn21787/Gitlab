@@ -78,6 +78,26 @@ def test_lab3_index_still_works(client):
     assert b"1.23" in resp.data
 
 
+def test_simulate_page_shows_ce_circuit(client):
+    html = client.get("/simulate").data
+    assert b'class="sim-circuit"' in html
+    assert b"CE voltage-divider" in html
+    assert b"<svg" in html
+    assert b"Vout" in html
+
+    invalid = client.post("/simulate", data=dict(DEFAULTS, re="0"))
+    assert b'class="sim-circuit"' in invalid.data
+    assert b"status-success" not in invalid.data
+
+
+def test_ce_circuit_is_not_a_nested_card():
+    css = (Path(__file__).resolve().parents[1] / "static" / "style.css").read_text("utf-8")
+    block = css.split(".sim-circuit {", 1)[1].split("}", 1)[0]
+    assert "border-bottom" in block
+    assert "border-radius" not in block
+    assert "background" not in block
+
+
 def test_status_strip_precedes_form(client):
     resp = client.get("/simulate")
     body = resp.data.decode("utf-8")

@@ -444,6 +444,36 @@ button:hover {
   color: var(--teal);
 }
 
+.sim-circuit {
+  margin: 0 0 0.9rem;
+  padding: 0 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.sim-circuit svg {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.sim-circuit-caption {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.sim-circuit-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  text-wrap: pretty;
+}
+
 .sim-goal {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.75rem;

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from flask import Flask, render_template, request
 
 from bjt_bias.engineering import analyze
-from bjt_bias.plotting import circuit_svg, load_line_svg
+from bjt_bias.plotting import ce_circuit_svg, circuit_svg, load_line_svg
 from bjt_bias.spice_engine import MODEL_NAME, run_simulation
 from bjt_bias.spice_plots import ac_svg, transient_svg
 from bjt_bias.spice_validation import DEFAULTS, parse_spice_inputs
@@ -82,6 +82,7 @@ def create_app() -> Flask:
                 raw=DEFAULTS, units={}, errors={}, analysis="dc",
                 defaults=DEFAULTS, sim_result=None, status="idle",
                 ac_plot="", tran_plot="", run_at=None, model=MODEL_NAME,
+                circuit_svg=ce_circuit_svg(),
             )
 
         parsed = parse_spice_inputs(request.form)
@@ -92,7 +93,7 @@ def create_app() -> Flask:
                 raw=parsed.raw, units=parsed.units, errors=parsed.errors,
                 analysis=analysis, defaults=DEFAULTS, sim_result=None,
                 status="invalid", ac_plot="", tran_plot="", run_at=None,
-                model=MODEL_NAME,
+                model=MODEL_NAME, circuit_svg=ce_circuit_svg(),
             )
 
         sim_result = run_simulation(parsed.inputs)
@@ -104,7 +105,7 @@ def create_app() -> Flask:
             analysis=analysis, defaults=DEFAULTS, sim_result=sim_result,
             status=sim_result.status, ac_plot=ac_plot, tran_plot=tran_plot,
             run_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            model=MODEL_NAME,
+            model=MODEL_NAME, circuit_svg=ce_circuit_svg(),
         )
 
     return app

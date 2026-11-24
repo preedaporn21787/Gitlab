@@ -68,6 +68,11 @@
   <div class="sim-layout">
     <section class="card input-card">
       <h2 class="card-title">Analysis &amp; Parameters</h2>
+      <div class="sim-circuit">
+        {{ circuit_svg|safe }}
+        <p class="sim-circuit-caption"><b>CE voltage-divider</b> — วงจรอ้างอิงเดียวกับ netlist ที่ ngspice รัน</p>
+        <p class="sim-circuit-note">DC: Cin/Cout เป็นวงเปิด · AC/Transient: ต่อ Cin/Cout + RL + Vin</p>
+      </div>
       <form method="post" action="/simulate" id="sim-form">
         <fieldset class="setting-group">
           <legend>Analysis (เลือก 1 ต่อการรัน)</legend>
