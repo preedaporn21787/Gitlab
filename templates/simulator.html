@@ -17,12 +17,16 @@
   'success': 'Success — ngspice รันจริง', 'error': 'Engine error',
   'timeout': 'Engine timeout', 'engine_missing': 'Engine ไม่พร้อม'
 } %}
+{% set field_hints = {'re': 'ลอง 1 kΩ'} %}
 {% macro input_field(name, label, choices=none, fixed_unit='') %}
 {% set current_unit = raw.get(name ~ '_unit', defaults.get(name ~ '_unit', fixed_unit)) %}
+{% set error_id = name ~ '-error' %}
 <div class="field">
   <label for="{{ name }}">{{ label|safe }}</label>
   <div class="input-with-unit">
-    <input type="text" id="{{ name }}" name="{{ name }}" value="{{ raw.get(name, defaults.get(name, '')) }}">
+    <input type="text" id="{{ name }}" name="{{ name }}" inputmode="decimal"
+           value="{{ raw.get(name, defaults.get(name, '')) }}"
+           {% if errors.get(name) %}aria-describedby="{{ error_id }}"{% endif %}>
     {% if choices %}
     <select name="{{ name }}_unit" aria-label="Unit for {{ name }}">
       {% for unit in choices %}
@@ -30,10 +34,13 @@
       {% endfor %}
     </select>
     {% else %}
+    <input type="hidden" name="{{ name }}_unit" value="{{ fixed_unit }}">
     <span class="unit">{{ fixed_unit }}</span>
     {% endif %}
   </div>
-  {% if errors.get(name) %}<p class="error">{{ errors[name] }}</p>{% endif %}
+  {% if errors.get(name) %}
+  <p class="error" id="{{ error_id }}">{{ errors[name] }}{% if field_hints.get(name) %} — {{ field_hints[name] }}{% endif %}</p>
+  {% endif %}
 </div>
 {% endmacro %}
 <main>
@@ -50,6 +57,13 @@
       <span>Engine: ngspice batch (real run)</span>
     </div>
   </header>
+
+  <p class="sim-goal"><b>Lab 04 goal:</b> เปลี่ยนชิ้นส่วนเดียว → รัน DC → เปรียบเทียบ VCE</p>
+
+  <div id="mobile-status" class="sim-status mobile-status status-{{ status }}" role="status">
+    <strong>{{ status_labels.get(status, status) }}</strong>
+    {% if sim_result %}<span class="status-message">{{ sim_result.message }}</span>{% endif %}
+  </div>
 
   <div class="sim-layout">
     <section class="card input-card">
@@ -96,7 +110,8 @@
           {{ input_field('max_step', 'Max step', times) }}
         </fieldset>
 
-        <button type="submit">Run ngspice</button>
+        <button type="submit" id="run-button" data-run-label="Run ngspice">Run ngspice</button>
+        <span id="run-pending" class="run-pending" aria-live="polite"></span>
       </form>
     </section>
 
@@ -129,12 +144,6 @@
         <strong>{{ status_labels.get(status, status) }}</strong>
         {% if sim_result %}<span class="status-message">{{ sim_result.message }}</span>{% endif %}
       </div>
-
-      {% if errors %}
-      <ul class="warnings sim-errors">
-        {% for field, message in errors.items() %}<li><b>{{ field }}</b>: {{ message }}</li>{% endfor %}
-      </ul>
-      {% endif %}
 
       {% if sim_result and not sim_result.status == 'success' and sim_result.log %}
       <details class="engine-log">

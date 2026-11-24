@@ -444,6 +444,33 @@ button:hover {
   color: var(--teal);
 }
 
+.sim-goal {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: #eef4f7;
+  border: 1px solid #cfe0e6;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.mobile-status {
+  display: none;
+}
+
+.run-pending {
+  display: block;
+  min-height: 1.4em;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--teal-dark);
+}
+
+.error-hint {
+  color: var(--muted);
+}
+
 .setting-group {
   margin: 0;
   padding: 0.65rem 0.75rem 0.85rem;
@@ -576,6 +603,7 @@ button:hover {
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 .spice-table td:nth-child(3) {
@@ -590,6 +618,7 @@ button:hover {
   border-top: 1px solid var(--line);
   font-size: 0.78rem;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 .provenance p {
@@ -620,5 +649,21 @@ button:hover {
   }
   .analysis-choice {
     flex-direction: column;
+  }
+  .mobile-status {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+  button,
+  .input-with-unit select {
+    min-height: 44px;
+  }
+  .source-note,
+  .provenance {
+    font-size: 0.85rem;
   }
 }
