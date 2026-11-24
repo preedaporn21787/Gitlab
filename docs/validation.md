@@ -114,13 +114,17 @@ Commit SHA: `9a29f16`
   pending state ของปุ่ม + aria-live, error ตรงช่องพร้อม `aria-describedby` และคำแนะนำ, ยุบรายการ error ซ้ำ,
   เพิ่ม goal line 1 บรรทัด; **ไม่แตะสูตร/ngspice/ข้อมูลกราฟ**
 - Audit หลังปรับ: **16/20 (Good)** — A11y 4, Performance 4, Theming 2, Responsive 3, Implementation Integrity 3
-- Detector หลังปรับ: เหลือ `nested-cards` (warning, fieldset ใน input-card) และ `straggler` แนะนำใน `p.placeholder` ที่ 390 px;
-  `side-tab` ที่เพิ่มในรอบ polish ได้แก้เป็น full border แล้ว
+- Detector หลังปรับ: เหลือ `nested-cards` (warning, fieldset ใน input-card) + `first-viewport-column-overflow`
+  (warning: คอลัมน์ซ้ายสูงกว่าคอลัมน์ขวาเมื่อมีรูปวงจร) ที่ 1280×800 และ `nested-cards` + `straggler`
+  แนะนำใน `p.placeholder` ที่ 390×844; `side-tab` ที่เพิ่มในรอบ polish ได้แก้เป็น full border แล้ว
+- รูปวงจร CE: `bjt_bias/plotting.py::ce_circuit_svg()` วาดฝั่งเซิร์ฟเวอร์ (viewBox 360×280) ใช้ topology
+  เดียวกับ netlist; ตรวจใน OpenCode Browser ว่า SVG กว้าง 226 px สูง 176 px, ป้ายทุกตัวอยู่ใน viewBox
+  และไม่มี horizontal overflow ที่ 390 px — รูปย่อ/ขยายตามการ์ด ไม่ใช่ nested card
 - Lighthouse: accessibility 1.0, best-practices 1.0, SEO 0.75 (ขาด meta description — ไม่กระทบงานแลป)
 
 ## ประเด็นที่ยังไม่ resolve
 
 1. ไม่มี Starter Kit หรือโมเดล BJT จากผู้สอนใน repo/Downloads จึงใช้ `NPN_REF` เป็น local reference และติดป้ายไว้ใน UI/เอกสาร
 2. Playwright MCP ถูกเพิ่ม config แล้วแต่ยัง connect ไม่ได้ใน Desktop ที่เปิดอยู่ → ใช้ OpenCode Browser แทน
-3. `nested-cards`, `straggler` ที่ 390 px และ meta description เป็น P2/P3 ที่ไม่กระทบความถูกต้องของผลจำลอง
+3. `nested-cards`, `first-viewport-column-overflow`, `straggler` ที่ 390 px และ meta description เป็น P2/P3 ที่ไม่กระทบความถูกต้องของผลจำลอง
 4. ภาพ screenshot 1280/390 px และ before/after จะจัดทำโดยผู้ใช้ตามที่แจ้ง

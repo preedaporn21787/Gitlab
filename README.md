@@ -79,6 +79,9 @@ python -m venv .venv
 - เลือก analysis ได้ทีละอัน: `DC (.op)`, `AC (.ac)` หรือ `Transient (.tran)` แล้วกด **Run ngspice**
 - ค่าเริ่มต้นตามใบงาน: VCC 12 V, R1 100 kΩ, R2 22 kΩ, RC 2.2 kΩ, RE 1 kΩ,
   RL 10 kΩ, Cin = Cout = 10 µF, แหล่งสัญญาณ 10 mV @ 1 kHz
+- การ์ดซ้ายแสดง **รูปวงจร CE voltage-divider** (SVG วาดฝั่งเซิร์ฟเวอร์จาก topology
+  เดียวกับ netlist) เหนือช่องกรอกค่า พร้อมหมายเหตุว่า DC เห็น Cin/Cout เป็นวงเปิด
+  ส่วน AC/transient ต่อ Cin/Cout + RL + Vin
 - ผล DC แสดง VB/VE/VC/VCE/IC พร้อมหน่วย; ผล AC/transient วาด SVG จากข้อมูลจริง
   ที่อ่านจากไฟล์ `.raw` ไม่ใช่กราฟจำลอง
 - หน้าแสดง engine version, ชื่อโมเดล, เวลาที่รัน และที่มาของค่าอย่างชัดเจน
@@ -107,11 +110,11 @@ npx impeccable install --yes --providers=opencode --scope=project
 .\.venv\Scripts\python -m pytest -q
 ```
 
-ผลการทดสอบล่าสุด: ผ่านทั้งหมด **173 เคส** (Lab 03 เดิม 148 เคส + Lab 04 เพิ่ม 25 เคส)
+ผลการทดสอบล่าสุด: ผ่านทั้งหมด **176 เคส** (Lab 03 เดิม 148 เคส + Lab 04 เพิ่ม 28 เคส)
 
 ```powershell
 .\.venv\Scripts\python -m pytest -q
-# 173 passed
+# 176 passed
 ```
 
 ### บทบาทของ MCP (Model Context Protocol)
