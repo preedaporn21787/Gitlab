@@ -110,11 +110,11 @@ npx impeccable install --yes --providers=opencode --scope=project
 .\.venv\Scripts\python -m pytest -q
 ```
 
-ผลการทดสอบล่าสุด: ผ่านทั้งหมด **176 เคส** (Lab 03 เดิม 148 เคส + Lab 04 เพิ่ม 28 เคส)
+ผลการทดสอบล่าสุด: ผ่านทั้งหมด **177 เคส** (Lab 03 เดิม 148 เคส + Lab 04 เพิ่ม 29 เคส)
 
 ```powershell
 .\.venv\Scripts\python -m pytest -q
-# 176 passed
+# 177 passed
 ```
 
 ### บทบาทของ MCP (Model Context Protocol)

@@ -273,6 +273,11 @@ def ce_circuit_svg(labels: Mapping[str, str] | None = None) -> str:
     lines.append(
         f'<circle cx="{circle_cx}" cy="{circle_cy}" r="{circle_r}" class="tc"/>'
     )
+    # สายเบส: จากจุดต่อ R1/R2 ไปยังแท่งฐานของ Q1
+    lines.append(
+        f'<line x1="{left_x}" y1="{base_y}" x2="{base_bar_x}" y2="{base_y}" '
+        'class="w base-wire"/>'
+    )
     lines.append(f'<line x1="{base_bar_x}" y1="130" x2="{base_bar_x}" y2="154" class="w"/>')
     lines.append(f'<line x1="{base_bar_x}" y1="130" x2="{right_x}" y2="{collector_y}" class="w"/>')
     lines.append(f'<line x1="{base_bar_x}" y1="154" x2="{right_x}" y2="{emitter_y}" class="w"/>')

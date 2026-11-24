@@ -118,8 +118,8 @@ Commit SHA: `9a29f16`
   (warning: คอลัมน์ซ้ายสูงกว่าคอลัมน์ขวาเมื่อมีรูปวงจร) ที่ 1280×800 และ `nested-cards` + `straggler`
   แนะนำใน `p.placeholder` ที่ 390×844; `side-tab` ที่เพิ่มในรอบ polish ได้แก้เป็น full border แล้ว
 - รูปวงจร CE: `bjt_bias/plotting.py::ce_circuit_svg()` วาดฝั่งเซิร์ฟเวอร์ (viewBox 360×280) ใช้ topology
-  เดียวกับ netlist; ตรวจใน OpenCode Browser ว่า SVG กว้าง 226 px สูง 176 px, ป้ายทุกตัวอยู่ใน viewBox
-  และไม่มี horizontal overflow ที่ 390 px — รูปย่อ/ขยายตามการ์ด ไม่ใช่ nested card
+  เดียวกับ netlist; มีสายเบสจากจุดต่อ R1/R2 ไปยังแท่งฐาน Q1; ตรวจใน OpenCode Browser ว่า SVG กว้าง 226 px
+  สูง 176 px, ป้ายทุกตัวอยู่ใน viewBox และไม่มี horizontal overflow ที่ 390 px — รูปย่อ/ขยายตามการ์ด ไม่ใช่ nested card
 - Lighthouse: accessibility 1.0, best-practices 1.0, SEO 0.75 (ขาด meta description — ไม่กระทบงานแลป)
 
 ## ประเด็นที่ยังไม่ resolve

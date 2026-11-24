@@ -27,6 +27,12 @@ def test_empty_points_return_empty_string():
     assert ac_svg([]) == "" and transient_svg([]) == ""
 
 
+def test_ce_circuit_svg_connects_divider_to_base():
+    svg = ce_circuit_svg()
+    assert 'class="w base-wire"' in svg
+    assert 'x1="78" y1="142" x2="150" y2="142"' in svg
+
+
 def test_ce_circuit_svg_has_parts_and_labels():
     svg = ce_circuit_svg({"vcc": "12 V", "r1": "100 kΩ", "rc": "2.2 kΩ"})
     assert svg.startswith("<svg")
