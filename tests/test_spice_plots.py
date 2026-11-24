@@ -1,3 +1,4 @@
+from bjt_bias.plotting import ce_circuit_svg
 from bjt_bias.spice_engine import AcPoint, TransientPoint
 from bjt_bias.spice_plots import ac_svg, transient_svg
 
@@ -24,3 +25,12 @@ def test_transient_svg_has_units_and_legend():
 
 def test_empty_points_return_empty_string():
     assert ac_svg([]) == "" and transient_svg([]) == ""
+
+
+def test_ce_circuit_svg_has_parts_and_labels():
+    svg = ce_circuit_svg({"vcc": "12 V", "r1": "100 kΩ", "rc": "2.2 kΩ"})
+    assert svg.startswith("<svg")
+    assert 'role="img"' in svg
+    for label in ("+VCC", "R1", "R2", "RC", "RE", "Q1", "Cin", "Cout", "RL", "Vin", "Vout", "GND"):
+        assert label in svg
+    assert "<script" not in svg.lower()

@@ -203,6 +203,129 @@ def circuit_svg(labels: Mapping[str, str], bias_type: str = "voltage_divider") -
     return "\n".join(lines)
 
 
+def ce_circuit_svg(labels: Mapping[str, str] | None = None) -> str:
+    """วาดวงจรอ้างอิง CE voltage-divider หนึ่งวงจรเป็นสตริง SVG.
+
+    แผนภาพนี้เป็น topology คงที่ของ netlist ที่ ``spice_engine`` ใช้:
+    Vin ผ่าน Cin เข้าฐาน, R1/R2 แบ่งไบแอส, RC ที่คอลเลกเตอร์, RE ที่อิมิตเตอร์,
+    Cout/RL ที่เอาต์พุต และกราวด์ร่วม. ค่าตัวเลขแสดงในฟอร์มแยกต่างหาก.
+    """
+    labels = labels or {}
+    value_note = " ".join(f"{key}={value}" for key, value in labels.items() if value)
+    desc = "วงจรขยายคอมมอน-อีมิเตอร์แบบ voltage divider สำหรับ ngspice"
+    if value_note:
+        desc = f"{desc}: {value_note}"
+
+    # พิกัดหลักของแผนภาพ
+    top_y = 34
+    bottom_y = 240
+    left_x = 78
+    right_x = 252
+    base_y = 142
+    base_bar_x = 150
+    collector_y = 118
+    emitter_y = 180
+    out_x = 318
+    source_x = 26
+    circle_cx, circle_cy, circle_r = 166, 142, 26
+
+    lines: list[str] = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 280" '
+        'role="img" aria-labelledby="ce-circuit-title ce-circuit-desc">',
+        '<title id="ce-circuit-title">วงจรขยาย CE แบบ voltage divider</title>',
+        f'<desc id="ce-circuit-desc">{_esc(desc)}</desc>',
+        '<rect x="0" y="0" width="360" height="280" fill="#ffffff"/>',
+        '<style>'
+        '.w{stroke:#1f5f6b;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}'
+        '.tc{stroke:#1f5f6b;stroke-width:1.8;fill:#dce9f5;}'
+        '.node{fill:#1f5f6b;}'
+        '.lbl{font-family:Georgia,"Times New Roman",serif;font-style:italic;'
+        'font-size:12px;fill:#1f2430;}'
+        '.small{font-family:Georgia,"Times New Roman",serif;font-style:normal;'
+        'font-size:9.5px;fill:#1f2430;}'
+        '</style>',
+    ]
+
+    # ราง VCC และกราวด์ร่วม
+    lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{right_x}" y2="{top_y}" class="w"/>')
+    lines.append(f'<line x1="{source_x}" y1="{bottom_y}" x2="{out_x}" y2="{bottom_y}" class="w"/>')
+    lines.append(
+        f'<text x="{(left_x + right_x) / 2:.0f}" y="21" text-anchor="middle" '
+        'class="lbl">+VCC</text>'
+    )
+
+    # R1: VCC ลงมาที่โหนดฐาน
+    lines.append(f'<line x1="{left_x}" y1="{top_y}" x2="{left_x}" y2="62" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(left_x, 62, 104)}" class="w"/>')
+    lines.append(f'<line x1="{left_x}" y1="104" x2="{left_x}" y2="{base_y}" class="w"/>')
+
+    # R2: โหนดฐานลงกราวด์
+    lines.append(f'<line x1="{left_x}" y1="{base_y}" x2="{left_x}" y2="168" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(left_x, 168, 210)}" class="w"/>')
+    lines.append(f'<line x1="{left_x}" y1="210" x2="{left_x}" y2="{bottom_y}" class="w"/>')
+
+    # RC: VCC ลงมาที่คอลเลกเตอร์
+    lines.append(f'<line x1="{right_x}" y1="{top_y}" x2="{right_x}" y2="62" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(right_x, 62, 104)}" class="w"/>')
+    lines.append(f'<line x1="{right_x}" y1="104" x2="{right_x}" y2="{collector_y}" class="w"/>')
+
+    # Q1 และขาของทรานซิสเตอร์
+    lines.append(
+        f'<circle cx="{circle_cx}" cy="{circle_cy}" r="{circle_r}" class="tc"/>'
+    )
+    lines.append(f'<line x1="{base_bar_x}" y1="130" x2="{base_bar_x}" y2="154" class="w"/>')
+    lines.append(f'<line x1="{base_bar_x}" y1="130" x2="{right_x}" y2="{collector_y}" class="w"/>')
+    lines.append(f'<line x1="{base_bar_x}" y1="154" x2="{right_x}" y2="{emitter_y}" class="w"/>')
+    lines.append('<polygon points="202,168 189,168 191,160" fill="#1f5f6b"/>')
+
+    # RE: อิมิตเตอร์ลงกราวด์
+    lines.append(f'<line x1="{right_x}" y1="{emitter_y}" x2="{right_x}" y2="190" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(right_x, 190, 226)}" class="w"/>')
+    lines.append(f'<line x1="{right_x}" y1="226" x2="{right_x}" y2="{bottom_y}" class="w"/>')
+
+    # อินพุต: แหล่ง Vin ต่อลงกราวด์ ผ่าน Cin เข้าฐาน
+    lines.append(f'<line x1="{source_x}" y1="{bottom_y}" x2="{source_x}" y2="{base_y}" class="w"/>')
+    lines.append(
+        f'<circle cx="{source_x}" cy="190" r="13" fill="#ffffff" class="tc"/>'
+    )
+    lines.append(f'<path d="M19 190 q3.5 -6 7 0 t7 0" class="w"/>')
+    lines.append(f'<line x1="{source_x}" y1="{base_y}" x2="46" y2="{base_y}" class="w"/>')
+    lines.append(f'<line x1="46" y1="{base_y - 8}" x2="46" y2="{base_y + 8}" class="w"/>')
+    lines.append(f'<line x1="52" y1="{base_y - 8}" x2="52" y2="{base_y + 8}" class="w"/>')
+    lines.append(f'<line x1="52" y1="{base_y}" x2="{left_x}" y2="{base_y}" class="w"/>')
+
+    # เอาต์พุต: Cout แล้ว Vout พร้อม RL ลงกราวด์
+    lines.append(f'<line x1="{right_x}" y1="{collector_y}" x2="282" y2="{collector_y}" class="w"/>')
+    lines.append(f'<line x1="282" y1="{collector_y - 8}" x2="282" y2="{collector_y + 8}" class="w"/>')
+    lines.append(f'<line x1="288" y1="{collector_y - 8}" x2="288" y2="{collector_y + 8}" class="w"/>')
+    lines.append(f'<line x1="288" y1="{collector_y}" x2="{out_x}" y2="{collector_y}" class="w"/>')
+    lines.append(f'<line x1="{out_x}" y1="{collector_y}" x2="{out_x}" y2="132" class="w"/>')
+    lines.append(f'<polyline points="{_zigzag(out_x, 132, 196)}" class="w"/>')
+    lines.append(f'<line x1="{out_x}" y1="196" x2="{out_x}" y2="{bottom_y}" class="w"/>')
+
+    # จุดต่อและกราวด์
+    for x, y in ((left_x, base_y), (right_x, collector_y), (right_x, emitter_y), (out_x, collector_y)):
+        lines.append(f'<circle cx="{x}" cy="{y}" r="3.2" class="node"/>')
+    lines.extend(_ground(180, bottom_y))
+
+    # ป้ายชื่ออุปกรณ์
+    lines.append(f'<text x="{left_x - 12}" y="78" text-anchor="end" class="lbl">R1</text>')
+    lines.append(f'<text x="{left_x - 12}" y="188" text-anchor="end" class="lbl">R2</text>')
+    lines.append(f'<text x="{right_x + 12}" y="78" class="lbl">RC</text>')
+    lines.append(f'<text x="{right_x + 12}" y="202" class="lbl">RE</text>')
+    lines.append(f'<text x="55" y="128" text-anchor="middle" class="lbl">Cin</text>')
+    lines.append(f'<text x="288" y="104" text-anchor="middle" class="lbl">Cout</text>')
+    lines.append(f'<text x="{out_x - 2}" y="160" text-anchor="end" class="lbl">RL</text>')
+    lines.append(f'<text x="{source_x}" y="218" text-anchor="middle" class="lbl">Vin</text>')
+    lines.append(f'<text x="330" y="110" text-anchor="end" class="lbl">Vout</text>')
+    lines.append(f'<text x="204" y="143" class="lbl">Q1</text>')
+    lines.append(f'<text x="204" y="155" class="small">NPN</text>')
+    lines.append(f'<text x="180" y="268" text-anchor="middle" class="small">GND</text>')
+
+    lines.append("</svg>")
+    return "\n".join(lines)
+
+
 def load_line_svg(inputs: BiasInputs, op: OperatingPoint) -> str:
     """วาดกราฟเส้นโหลดไลน์ I_C–V_CE เป็นสตริง SVG.
 
